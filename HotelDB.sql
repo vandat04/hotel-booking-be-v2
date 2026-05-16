@@ -208,12 +208,12 @@ CREATE TABLE Bookings (
 
     -- Trạng thái của đơn đặt phòng:
     -- 'PENDING' (Chờ thanh toán), 'CONFIRMED' (Đã xác nhận giữ phòng), 'CHECKED_IN' (Đang ở), 'CHECKED_OUT' (Đã trả phòng), 'CANCELLED' (Đã hủy)
-    status NVARCHAR(50) NOT NULL DEFAULT 'PENDING' CHECK ( status IN ('PENDING', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED', 'NO_SHOW' ) ),
+    status NVARCHAR(50) NOT NULL DEFAULT 'PENDING' CHECK ( status IN ('PENDING', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_DAMAGE_ROOM', 'CHECKED_OUT', 'CANCELLED', 'NO_SHOW' ) ),
 
     total_amount DECIMAL(18, 2) NOT NULL DEFAULT 0.00 CHECK (total_amount >= 0), -- Tổng tiền của đơn đặt phòng
 
     -- 'UNPAID' (Chưa thanh toán), 'PARTIALLY_PAID' (Đặt cọc một phần), 'PAID' (Đã thanh toán đủ)
-    payment_status NVARCHAR(50) DEFAULT 'UNPAID' CHECK ( payment_status IN ('UNPAID','PARTIALLY_PAID','PAID') ),
+    payment_status NVARCHAR(50) DEFAULT 'UNPAID' CHECK ( payment_status IN ('UNPAID','PARTIALLY_PAID','PAID', 'REFUND') ),
     notes NVARCHAR(MAX),-- Ghi chú của khách hoặc lễ tân
     created_at DATETIME2 DEFAULT GETDATE(),
     updated_at DATETIME2 DEFAULT GETDATE(),
@@ -366,12 +366,13 @@ CREATE TABLE Invoices (
     CONSTRAINT FK_Invoices_Payments FOREIGN KEY (payment_id) REFERENCES Payments(id)
 );
 GO
+
 -- TẠO BẢNG Reviews (Tạo review sau khi CHECK-OUT thành công)
 CREATE TABLE Reviews (
     id INT IDENTITY(1,1) PRIMARY KEY,
     booking_id INT NOT NULL UNIQUE,-- Mỗi lượt đặt phòng chỉ được đánh giá 1 lần
-    customer_id INT NULL,-- Người đánh giá (liên kết với bảng Users)
-    customer_name NVARCHAR(255), --Đánh giá tại quầy nếu là khách
+    customer_id INT NULL,-- Người đánh giá (liên kết với bảng Users) - hoặc không nếu booking tại quầy
+    customer_name NVARCHAR(255),
     room_type_id INT NOT NULL,-- Đánh giá dành cho loại phòng nào (Standard, Deluxe...)
 
     rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),-- Thang điểm đánh giá (Thường từ 1 đến 5 sao)

@@ -1,10 +1,15 @@
 package hotel_booking.service;
 
+import hotel_booking.dto.request.PaginationRequest;
+import hotel_booking.dto.response.CustomerNotificationResponse;
 import hotel_booking.entity.Booking;
 import hotel_booking.entity.CustomerNotification;
 import hotel_booking.entity.User;
 import hotel_booking.repository.CustomerNotificationRepository;
+import hotel_booking.util.PaginationUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -16,7 +21,7 @@ public class NotificationService {
     private final CustomerNotificationRepository notificationRepository;
     private final EmailService emailService;
 
-    // ================= CREATE NOTIFICATION =================
+    // ================= CREATE CUSTOMER NOTIFICATION =================
     public void createCustomerNotification(
             User user,
             Booking booking,
@@ -40,5 +45,36 @@ public class NotificationService {
                 .build();
 
         notificationRepository.save(notification);
+    }
+
+    // ================= VIEW CUSTOMER NOTIFICATION =================
+    public Page<CustomerNotificationResponse> getCustomerNotifications(
+            Integer userId,
+            PaginationRequest request
+    ) {
+
+        Pageable pageable = PaginationUtil.build(request);
+        Page<CustomerNotification> notificationPage =
+                notificationRepository.findByUser_Id(userId, pageable);
+        return notificationPage.map(this::mapToResponse);
+    }
+
+    private CustomerNotificationResponse mapToResponse(
+            CustomerNotification notification
+    ) {
+        return CustomerNotificationResponse.builder()
+                .id(notification.getId())
+                .bookingId(
+                        notification.getBooking() != null
+                                ? notification.getBooking().getId()
+                                : null
+                )
+                .title(notification.getTitle())
+                .message(notification.getMessage())
+                .notificationType(notification.getNotificationType())
+                .isRead(notification.getIsRead())
+                .readAt(notification.getReadAt())
+                .createdAt(notification.getCreatedAt())
+                .build();
     }
 }

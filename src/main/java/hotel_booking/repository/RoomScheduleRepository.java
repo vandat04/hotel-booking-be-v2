@@ -6,25 +6,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public interface RoomScheduleRepository extends JpaRepository<RoomSchedule, Integer> {
-    //    @Query("""
-//            SELECT COUNT(rs)
-//            FROM RoomSchedule rs
-//            WHERE rs.room.id IN (
-//                SELECT r.id FROM Room r WHERE r.roomType.id = :roomTypeId
-//            )
-//            AND rs.status IN ('SCHEDULED', 'ACTIVE', 'COMPLETED', 'CANCELLED' )
-//            AND NOT (
-//                rs.endAt <= :checkIn
-//                OR rs.startAt >= :checkOut
-//            )
-//            """)
-//    int countOverlappingRooms(
-//            @Param("roomTypeId") Integer roomTypeId,
-//            @Param("checkIn") LocalDateTime checkIn,
-//            @Param("checkOut") LocalDateTime checkOut
-//    );
+
     @Query("""
             SELECT COUNT(DISTINCT rs.room.id)
             FROM RoomSchedule rs
@@ -40,4 +25,6 @@ public interface RoomScheduleRepository extends JpaRepository<RoomSchedule, Inte
             LocalDateTime checkIn,
             LocalDateTime checkOut
     );
+
+    List<RoomSchedule> findByBooking_Id(Integer bookingId);
 }

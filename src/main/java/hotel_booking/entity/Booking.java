@@ -78,4 +78,12 @@ public class Booking {
 
     @OneToMany(mappedBy = "booking")
     private List<RoomSchedule> roomSchedules;
+
+    @OneToMany(mappedBy = "booking")
+    private List<Payment> payments;
+
+    @OneToMany(mappedBy = "booking",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true)
+    private List<Invoice> invoices;
 }

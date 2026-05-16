@@ -3,9 +3,7 @@ package hotel_booking.service;
 import hotel_booking.dto.request.CheckAvailabilityRequest;
 import hotel_booking.dto.request.CreateBookingRequest;
 import hotel_booking.dto.request.PaginationRequest;
-import hotel_booking.dto.response.BookingHistoryResponse;
-import hotel_booking.dto.response.BookingResponse;
-import hotel_booking.dto.response.CheckAvailabilityResponse;
+import hotel_booking.dto.response.*;
 import hotel_booking.entity.*;
 import hotel_booking.repository.*;
 import hotel_booking.util.PaginationUtil;
@@ -31,40 +29,36 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final RoomKeyRepository roomKeyRepository;
+    private final PaymentRepository paymentRepository;
+    private final InvoiceRepository invoiceRepository;
+
+    // ==================================
+    // ========= CHECK AVAILABLE =========
+    // ==================================
 
     public CheckAvailabilityResponse checkAvailability(CheckAvailabilityRequest req) {
 
         LocalDateTime now = LocalDateTime.now();
-
-        // ==============================
-        // 1. VALIDATE
-        // ==============================
+        // ===========    1. VALIDATE   ===================
         if (req.getCheckIn() == null || req.getCheckOut() == null) {
             throw new IllegalArgumentException("Check-in / Check-out cannot be null");
         }
-
         if (req.getCheckIn().isBefore(now)) {
             throw new IllegalArgumentException("Check-in must be after current time");
         }
-
         if (!req.getCheckOut().isAfter(req.getCheckIn())) {
             throw new IllegalArgumentException("Check-out must be after check-in");
         }
-
         if (req.getNumberOfRoom() == null || req.getNumberOfRoom() <= 0) {
             throw new IllegalArgumentException("Number of rooms must be greater than 0");
         }
-
         String requestType = req.getBookingType().toUpperCase();
 
-        // ==============================
-        // 2. TOTAL ROOMS
-        // ==============================
+        // =============   2. TOTAL ROOMS   =================
         int totalRooms = roomRepository.countTotalRooms(req.getRoomTypeId());
 
-        // ==============================
-        // 3. AVAILABLE ROOMS (RAW LIST)
-        // ==============================
+        // ==============   3. AVAILABLE ROOMS (RAW LIST)   ================
         List<Room> availableRoomsList =
                 roomRepository.findAvailableRooms(
                         req.getRoomTypeId(),
@@ -72,9 +66,7 @@ public class BookingService {
                         req.getCheckOut()
                 );
 
-        // ==============================
-        // 4. SORT PRIORITY
-        // ==============================
+        // =============   4. SORT PRIORITY   =================
         Comparator<Room> comparator = Comparator
                 // (1) ưu tiên theo booking type
                 .comparing((Room r) -> {
@@ -97,9 +89,7 @@ public class BookingService {
 
         availableRoomsList.sort(comparator);
 
-        // ==============================
-        // 5. PICK ROOMS
-        // ==============================
+        // =============  5. PICK ROOMS  =================
         List<Integer> listRoomCanBook = availableRoomsList.stream()
                 .limit(req.getNumberOfRoom())
                 .map(Room::getId)
@@ -108,9 +98,7 @@ public class BookingService {
         int availableRoomsCount = availableRoomsList.size();
         boolean isAvailable = availableRoomsCount >= req.getNumberOfRoom();
 
-        // ==============================
-        // 6. PRICE
-        // ==============================
+        // ================= 6. PRICE =================
         Duration duration = Duration.between(req.getCheckIn(), req.getCheckOut());
 
         long minutes = duration.toMinutes();
@@ -130,15 +118,12 @@ public class BookingService {
             if (hours > 12) {
                 throw new RuntimeException("The hotel only allows bookings of less than 12 hours if booked on a Hourly basis.");
             }
-
             totalAmount = pricePerHour
                     .multiply(BigDecimal.valueOf(hours))
                     .multiply(BigDecimal.valueOf(req.getNumberOfRoom()));
         }
 
-        // ==============================
-        // 7. RESPONSE
-        // ==============================
+        // ================= 7. RESPONSE =================
         return CheckAvailabilityResponse.builder()
                 .available(isAvailable)
                 .totalRooms(totalRooms)
@@ -152,31 +137,30 @@ public class BookingService {
                 .build();
     }
 
+    // ==================================
+    // ========= CREATE BOOKING =========
+    // ==================================
+
     @Transactional
     public BookingResponse createBooking(CreateBookingRequest req) {
 
         // ================= RE-CHECK =================
-        CheckAvailabilityResponse availability =
-                checkAvailability(req.getAvailabilityRequest());
-
+        CheckAvailabilityResponse availability = checkAvailability(req.getAvailabilityRequest());
         if (!availability.getAvailable()) {
             throw new RuntimeException("Rooms just got booked by someone else");
         }
-
         List<Integer> roomIds = availability.getListRoomCanBook();
-
         if (roomIds.size() < req.getAvailabilityRequest().getNumberOfRoom()) {
             throw new RuntimeException("Not enough rooms available");
         }
 
         // ================= USER + ROOM TYPE =================
         User user = userRepository.findById(req.getCustomerId()).orElse(null);
-
         RoomType roomType = roomTypeRepository.findById(
                 req.getAvailabilityRequest().getRoomTypeId()
         ).orElseThrow(() -> new RuntimeException("Room type not found"));
 
-        // ================= CREATE BOOKING =================
+
         Booking booking = Booking.builder()
                 .customer(user)
                 .customerName(req.getCustomerName())
@@ -213,7 +197,7 @@ public class BookingService {
 
         roomScheduleRepository.saveAll(schedules);
 
-        notificationService.createCustomerNotification(user, booking, "BOOKING ROOM IN CHECK-X", "Room reservation successful, please process your booking within 1 minute.","BOOKING_SUCCESS");
+        notificationService.createCustomerNotification(user, booking, "BOOKING ROOM IN CHECK-X", "Room reservation successful, please process your booking within 1 minute.", "BOOKING_SUCCESS");
 
         return BookingResponse.builder()
                 .bookingId(booking.getId())
@@ -271,5 +255,236 @@ public class BookingService {
                 .totalAmount(b.getTotalAmount())
                 .createdAt(b.getCreatedAt())
                 .build();
+    }
+
+    // ==================================
+    // ======= GET BOOKING DETAILS ========
+    // ==================================
+    public BookingDetailResponse getBookingDetail(Integer bookingId) {
+
+        Booking booking = bookingRepository.findById(bookingId).orElseThrow(() ->
+                new RuntimeException("Booking not found with id: " + bookingId));
+        return mapToBookingDetailResponse(booking);
+    }
+
+    private BookingDetailResponse mapToBookingDetailResponse(Booking booking) {
+        return BookingDetailResponse.builder()
+                .bookingId(booking.getId())
+                .bookingType(booking.getBookingType())
+                .bookingSource(booking.getBookingSource())
+                .bookingStatus(booking.getStatus())
+                .totalAmount(booking.getTotalAmount())
+                .paymentStatus(booking.getPaymentStatus())
+                .notes(booking.getNotes())
+                .createdAt(booking.getCreatedAt())
+
+                // CUSTOMER
+                .customerId(booking.getCustomer() != null ? booking.getCustomer().getId() : null)
+                .customerName(booking.getCustomerName())
+                .customerPhone(booking.getCustomerPhone())
+                .customerEmail(booking.getCustomerEmail())
+
+                // ROOM TYPE
+                .roomTypeId(booking.getRoomType() != null ? booking.getRoomType().getId() : null)
+                .roomTypeName(booking.getRoomType() != null ? booking.getRoomType().getName() : null)
+                .pricePerDay(booking.getRoomType() != null ? booking.getRoomType().getPricePerDay() : null)
+                .pricePerHour(booking.getRoomType() != null ? booking.getRoomType().getPricePerHour() : null)
+
+                // REQUEST
+                .requestedQuantity(booking.getRequestedQuantity())
+                .requestedCheckin(booking.getRequestedCheckin())
+                .requestedCheckout(booking.getRequestedCheckout())
+
+                // ROOM SCHEDULE
+                .roomSchedules(booking.getRoomSchedules().stream()
+                        .map(this::mapRoomSchedule)
+                        .toList()
+                )
+
+                // PAYMET
+                .payments(
+                        booking.getPayments()
+                                .stream()
+                                .map(this::mapPayment)
+                                .toList()
+                )
+
+                // INVOICE
+                .invoices(
+                        booking.getInvoices()
+                                .stream()
+                                .map(this::mapInvoice)
+                                .toList()
+                )
+
+                .build();
+    }
+
+    private RoomScheduleDetailResponse mapRoomSchedule(
+            RoomSchedule roomSchedule
+    ) {
+
+        RoomKey roomKey = roomKeyRepository.findByRoomSchedule_Id(roomSchedule.getId()).orElse(null);
+
+        return RoomScheduleDetailResponse.builder().roomScheduleId(roomSchedule.getId())
+                .roomId(roomSchedule.getRoom() != null ? roomSchedule.getRoom().getId() : null)
+                .roomNumber(roomSchedule.getRoom() != null ? roomSchedule.getRoom().getRoomNumber() : null)
+                .floor(roomSchedule.getRoom() != null ? roomSchedule.getRoom().getFloor() : null)
+                .roomStatus(roomSchedule.getRoom() != null ? roomSchedule.getRoom().getStatus() : null)
+
+                .startAt(roomSchedule.getStartAt())
+                .endAt(roomSchedule.getEndAt())
+                .scheduleStatus(roomSchedule.getStatus())
+
+                // ROOM KEY
+                .roomKeyId(roomKey != null ? roomKey.getId() : null)
+                .codeNumber(roomKey != null ? roomKey.getCodeNumber() : null)
+                .qrCodeData(roomKey != null ? roomKey.getQrCodeData() : null)
+                .activatedAt(roomKey != null ? roomKey.getActivatedAt() : null)
+                .expiredAt(roomKey != null ? roomKey.getExpiredAt() : null)
+                .roomKeyStatus(roomKey != null ? roomKey.getStatus() : null)
+
+                .build();
+    }
+
+    private PaymentResponse mapPayment(
+            Payment payment
+    ) {
+
+        return PaymentResponse.builder()
+                .id(payment.getId())
+                .amount(payment.getAmount())
+                .paymentMethod(payment.getPaymentMethod())
+                .gatewayName(payment.getGatewayName())
+                .paymentType(payment.getPaymentType())
+                .status(payment.getStatus())
+                .transactionReference(
+                        payment.getTransactionReference()
+                )
+                .paymentDate(payment.getPaymentDate())
+                .notes(payment.getNotes())
+                .build();
+    }
+
+    private InvoiceResponse mapInvoice(
+            Invoice invoice
+    ) {
+
+        return InvoiceResponse.builder()
+                .id(invoice.getId())
+                .invoiceNumber(invoice.getInvoiceNumber())
+                .customerName(invoice.getCustomerName())
+                .customerEmail(invoice.getCustomerEmail())
+                .customerPhone(invoice.getCustomerPhone())
+                .amountPaid(invoice.getAmountPaid())
+                .invoiceDescription(
+                        invoice.getInvoiceDescription()
+                )
+                .issuedAt(invoice.getIssuedAt())
+                .isSentEmail(invoice.getIsSentEmail())
+                .build();
+    }
+
+    // ==================================
+    // ======= CANCELLED BOOKING  ========
+    // ==================================
+    @Transactional
+    public void cancelBooking(Integer bookingId) {
+
+        Booking booking = bookingRepository.findById(bookingId).orElseThrow(() ->
+                new RuntimeException("Booking not found with id: " + bookingId));
+
+        Integer userId = booking.getCustomer().getId();
+
+        if (!booking.getStatus().equals("PENDING")) {
+            throw new RuntimeException("Booking id: " + bookingId + " inappropriate function");
+        }
+
+        // ===== UPDATE BOOKING STATUS =====
+        booking.setStatus("CANCELLED");
+        booking.setUpdatedAt(LocalDateTime.now());
+
+        bookingRepository.save(booking);
+
+        // ===== UPDATE ROOM SCHEDULE STATUS =====
+        List<RoomSchedule> roomSchedules =
+                roomScheduleRepository.findByBooking_Id(bookingId);
+
+        for (RoomSchedule roomSchedule : roomSchedules) {
+
+            roomSchedule.setStatus("CANCELLED");
+            roomSchedule.setUpdatedAt(LocalDateTime.now());
+        }
+
+        User user = userRepository.findById(userId).orElse(null);
+        notificationService.createCustomerNotification(user, booking, "BOOKING ROOM IN CHECK-X", "Cancel Booking Success.", "BOOKING_CANCEL");
+
+        roomScheduleRepository.saveAll(roomSchedules);
+    }
+
+    // ==================================
+    // ========= CANCEL BOOKING =========
+    // ==================================
+    @Transactional
+    public void refundBooking(Integer customerId, Integer bookingId) {
+
+        // ===== FIND BOOKING =====
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("BOOKING_NOT_FOUND"));
+
+        // ===== CHECK OWNER =====
+        if (booking.getCustomer() == null
+                || !booking.getCustomer().getId().equals(customerId)) {
+            throw new RuntimeException("FORBIDDEN");
+        }
+
+        // ===== VALIDATE STATUS =====
+        if (!"CONFIRMED".equalsIgnoreCase(booking.getStatus())) {
+            throw new RuntimeException("ONLY_CONFIRMED_BOOKING_CAN_REFUND");
+        }
+
+        if (!"PAID".equalsIgnoreCase(booking.getPaymentStatus())) {
+            throw new RuntimeException("BOOKING_NOT_PAID");
+        }
+
+        // ===== VALIDATE TIME =====
+        LocalDateTime now = LocalDateTime.now();
+
+        if (now.isAfter(
+                booking.getRequestedCheckin().minusDays(1))) {
+            throw new RuntimeException("REFUND_MUST_BE_BEFORE_1_DAY");
+        }
+
+        // ===== UPDATE BOOKING =====
+        booking.setStatus("CANCELLED");
+        booking.setPaymentStatus("REFUND");
+        booking.setUpdatedAt(now);
+
+        // ===== UPDATE ROOM SCHEDULE =====
+        for (RoomSchedule rs : booking.getRoomSchedules()) {
+
+            rs.setStatus("CANCELLED");
+            rs.setUpdatedAt(now);
+        }
+
+        // ===== UPDATE PAYMENTS =====
+        for (Payment payment : booking.getPayments()) {
+
+            if ("SUCCESS".equalsIgnoreCase(payment.getStatus())) {
+
+                payment.setStatus("REFUNDED");
+
+                String oldNotes = payment.getNotes() == null
+                        ? ""
+                        : payment.getNotes();
+
+                payment.setNotes(
+                        oldNotes + " | REFUNDED AT: " + now
+                );
+            }
+        }
+
+        // ===== SAVE =====
+        bookingRepository.save(booking);
     }
 }

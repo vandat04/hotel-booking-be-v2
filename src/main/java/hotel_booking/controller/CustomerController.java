@@ -1,19 +1,24 @@
 package hotel_booking.controller;
 
-import hotel_booking.dto.request.ChangePasswordRequest;
-import hotel_booking.dto.request.PaginationRequest;
-import hotel_booking.dto.request.UpdateProfileRequest;
+import hotel_booking.dto.request.*;
+import hotel_booking.dto.response.BookingDetailResponse;
 import hotel_booking.dto.response.BookingHistoryResponse;
+import hotel_booking.dto.response.CustomerNotificationResponse;
 import hotel_booking.dto.response.UserProfileResponse;
-import hotel_booking.service.BookingService;
-import hotel_booking.service.UserService;
+import hotel_booking.service.*;
 import lombok.RequiredArgsConstructor;
 
+import org.apache.coyote.BadRequestException;
 import org.springframework.data.domain.Page;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.nio.file.attribute.UserPrincipal;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/customer")
@@ -22,6 +27,9 @@ public class CustomerController {
 
     private final UserService userService;
     private final BookingService bookingService;
+    private final NotificationService notificationService;
+    private final ReviewService reviewService;
+    private final PaymentService paymentService;
 
     // ================= GET USER ID =================
     public Integer getUserId() {
@@ -79,19 +87,79 @@ public class CustomerController {
     }
 
     // ================= VIEW HISTORY BOOKING DETAILS=================
+    @GetMapping("/booking/{bookingId}")
+    public BookingDetailResponse getBookingDetail(
+            @PathVariable Integer bookingId
+    ) {
+        System.out.println(bookingId);
+        System.out.println(getUserId());
+        return bookingService.getBookingDetail(bookingId);
+    }
 
     // ================= CANCEL BOOKING =================
+    @PutMapping("/booking/{bookingId}/cancel")
+    public ResponseEntity<String> cancelBooking(
+            @PathVariable Integer bookingId
+    ) {
+        bookingService.cancelBooking(bookingId);
+        return ResponseEntity.ok("Booking cancelled successfully");
+    }
 
     // ================= PAYMENT BOOKING =================
+    @PostMapping("/booking/payment/vnpay")
+    public ResponseEntity<?> payment(
+            @RequestBody PaymentRequest request
+    ) {
+        String paymentUrl =  paymentService.createVnPayPayment( getUserId(), request  );
+        return ResponseEntity.ok(
+                Map.of(
+                        "message", "Create payment success",
+                        "paymentUrl", paymentUrl
+                )
+        );
+    }
+    // ================= PAYMENT BOOKING RETURN =================
+    @GetMapping("/booking/payment/vnpay-return")
+    public ResponseEntity<?> vnpayReturn(
+            @RequestParam Map<String, String> paymentUrl
+    ) {
+        paymentService.handleVnPayReturn(paymentUrl);
+        return ResponseEntity.ok(
+                Map.of(
+                        "message", "Payment success"
+                )
+        );
+    }
 
     // ================= REFUND BOOKING =================
-
+    @PutMapping("/booking/{bookingId}/refund")
+    public ResponseEntity<?> refundBooking(
+            @PathVariable Integer bookingId
+    ) {
+        bookingService.refundBooking(getUserId(), bookingId);
+        return ResponseEntity.ok(
+                Map.of(
+                        "message", "Refund success"
+                )
+        );
+    }
     // ================= REVIEW =================
+    @PostMapping("/booking/review")
+    public ResponseEntity<String> createReview(
+            @RequestBody CreateReviewRequest request
+    ) throws BadRequestException {
+        reviewService.createReview(getUserId(), request);
+        return ResponseEntity.ok("Review submitted successfully");
+    }
+
+    // ================= VIEW NOTIFICATION ================
+    @GetMapping("/notification")
+    public Page<CustomerNotificationResponse> getNotifications(
+            @ModelAttribute PaginationRequest request
+    ) {
+        return notificationService.getCustomerNotifications(getUserId(), request);
+    }
 
     // ================= EXTEND BOOKING =================
-
-    // ================= VIEW NOTIFICATION =================
-
-
 
 }
