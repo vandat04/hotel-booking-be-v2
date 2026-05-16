@@ -23,4 +23,7 @@ public interface BookingRepository extends JpaRepository<Booking, Integer> {
             Pageable pageable
     );
 
+    boolean existsByRoomTypeId(Integer roomTypeId);
+
+
 }

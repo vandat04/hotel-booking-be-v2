@@ -14,4 +14,11 @@ public interface RoomTypeImageRepository extends JpaRepository<RoomTypeImage, In
     Optional<RoomTypeImage> findFirstByRoomTypeIdOrderByIdAsc(Integer roomTypeId);
 
     List<RoomTypeImage> findByRoomTypeId(Integer roomTypeId);
+
+    void deleteByRoomTypeId(Integer roomTypeId);
+
+    List<RoomTypeImage> findByRoomTypeIdOrderByIsPrimaryDescIdAsc(
+            Integer roomTypeId
+    );
+
 }

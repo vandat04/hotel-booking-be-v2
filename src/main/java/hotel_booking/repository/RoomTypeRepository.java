@@ -1,5 +1,6 @@
 package hotel_booking.repository;
 
+import hotel_booking.dto.response.RoomTypeDetailResponse;
 import hotel_booking.entity.RoomType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -36,5 +37,12 @@ public interface RoomTypeRepository extends JpaRepository<RoomType, Integer> {
 
     @Query("SELECT r.pricePerHour FROM RoomType r WHERE r.id = :id")
     BigDecimal findPricePerHourById(@Param("id") Integer id);
+
+    boolean existsByHotelIdAndNameIgnoreCase(Integer hotelId, String name);
+
+    Page<RoomType> findAllByStatus(
+            Integer status,
+            Pageable pageable
+    );
 
 }
