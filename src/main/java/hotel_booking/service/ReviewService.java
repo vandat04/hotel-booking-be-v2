@@ -6,6 +6,7 @@ import hotel_booking.dto.request.ReplyReviewRequest;
 import hotel_booking.dto.request.SearchReviewRequest;
 import hotel_booking.dto.response.PageResponse;
 import hotel_booking.dto.response.ReviewResponse;
+import hotel_booking.dto.response.ReviewStatisticsResponse;
 import hotel_booking.entity.Booking;
 import hotel_booking.entity.Review;
 import hotel_booking.repository.BookingRepository;
@@ -260,6 +261,31 @@ public class ReviewService {
                 .totalElements(pageResult.getTotalElements())
                 .totalPages(pageResult.getTotalPages())
                 .last(pageResult.isLast())
+                .build();
+    }
+
+    // ==================================
+    // ======= REVIEW RATE STATISTIC  ========
+    // ==================================
+    public ReviewStatisticsResponse getReviewStatistics() {
+
+        Long totalReviews = reviewRepository.countBy();
+
+        Double averageRating = reviewRepository.getAverageRating();
+
+        Long unrepliedReviews = reviewRepository.countUnrepliedReviews();
+
+        Long oneStarReviews = reviewRepository.countByRating(1);
+
+        return ReviewStatisticsResponse.builder()
+                .totalReviews(totalReviews)
+                .averageRating(
+                        averageRating != null
+                                ? Math.round(averageRating * 10.0) / 10.0
+                                : 0.0
+                )
+                .unrepliedReviews(unrepliedReviews)
+                .oneStarReviews(oneStarReviews)
                 .build();
     }
 }

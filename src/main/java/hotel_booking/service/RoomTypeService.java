@@ -15,7 +15,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -663,5 +665,48 @@ public class RoomTypeService {
 
         // ===== DELETE =====
         roomTypeItemRepository.delete(rti);
+    }
+
+    // ==================================
+    // =========  STATISTIC RATE ROOM TYPE =========
+    // ==================================
+    public List<RoomTypeBookingStatsResponse> getBookingStats(BookingDashboardRequest request) {
+
+        Integer year = request.getYear();
+        Integer month = request.getMonth();
+
+        // ===== ACTIVE ROOM TYPES =====
+        List<RoomType> roomTypes = roomTypeRepository.findByStatus(1);
+
+        // ===== ONLY CHECKED_OUT + PAID =====
+        List<Object[]> rawStats =
+                bookingRepository.countPaidCheckedOutByRoomType(year, month);
+
+        Map<Integer, Long> countMap = rawStats.stream()
+                .collect(Collectors.toMap(
+                        r -> (Integer) r[0],
+                        r -> (Long) r[1]
+                ));
+
+        long total = countMap.values().stream()
+                .mapToLong(Long::longValue)
+                .sum();
+
+        if (total == 0) total = 1;
+
+        long finalTotal = total;
+
+        return roomTypes.stream()
+                .map(rt -> {
+                    Long count = countMap.getOrDefault(rt.getId(), 0L);
+
+                    return RoomTypeBookingStatsResponse.builder()
+                            .roomTypeId(rt.getId())
+                            .roomTypeName(rt.getName())
+                            .bookingCount(count)
+                            .percentage((count * 100.0) / finalTotal)
+                            .build();
+                })
+                .toList();
     }
 }

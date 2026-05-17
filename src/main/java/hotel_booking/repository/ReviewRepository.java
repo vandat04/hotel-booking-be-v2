@@ -59,4 +59,26 @@ public interface ReviewRepository extends JpaRepository<Review, Integer> {
             @Param("toDate") LocalDateTime toDate,
             Pageable pageable
     );
+
+    // ===== TOTAL REVIEWS =====
+    Long countBy();
+
+    // ===== AVERAGE RATING =====
+    @Query("""
+                SELECT COALESCE(AVG(r.rating), 0)
+                FROM Review r
+            """)
+    Double getAverageRating();
+
+    // ===== UNREPLIED REVIEWS =====
+    @Query("""
+                SELECT COUNT(r)
+                FROM Review r
+                WHERE r.hotelReply IS NULL
+                   OR TRIM(r.hotelReply) = ''
+            """)
+    Long countUnrepliedReviews();
+
+    // ===== 1 STAR REVIEWS =====
+    Long countByRating(Integer rating);
 }
