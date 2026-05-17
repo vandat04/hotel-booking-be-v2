@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.awt.print.Book;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -86,5 +87,20 @@ public interface BookingRepository extends JpaRepository<Booking, Integer> {
             Pageable pageable
     );
 
+    long count();
 
+    long countByStatusAndRequestedCheckinBetween(
+            String status,
+            LocalDateTime start,
+            LocalDateTime end
+    );
+
+    long countByStatus(String status);
+
+    @Query("""
+            SELECT COALESCE(SUM(b.totalAmount), 0)
+            FROM Booking b
+            WHERE b.paymentStatus IN ('PAID', 'PARTIALLY_PAID')
+            """)
+    BigDecimal getTotalRevenue();
 }

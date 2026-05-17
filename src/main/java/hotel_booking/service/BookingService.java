@@ -14,7 +14,9 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Comparator;
 import java.util.List;
 
@@ -815,4 +817,43 @@ public class BookingService {
 
     }
 
+    // =====================================================
+    // STATISTIC BOOKINGS
+    // =====================================================
+    public BookingStatisticsResponse getBookingStatistics() {
+        // TOTAL BOOKINGS =====================================================
+        long totalBookings = bookingRepository.count();
+
+        // CHECKED IN TODAY =====================================================
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
+        long checkedInToday = bookingRepository.countByStatusAndRequestedCheckinBetween("CHECKED_IN", startOfDay, endOfDay);
+
+        // CANCELLED BOOKINGS  =====================================================
+        long cancelledBookings = bookingRepository.countByStatus("CANCELLED");
+
+        // REVENUE =====================================================
+        BigDecimal totalRevenue = bookingRepository.getTotalRevenue();
+
+        // OCCUPANCY RATE =====================================================
+        long totalRooms = roomRepository.countByIsActiveTrue();
+        long occupiedRooms = roomRepository.countByStatus("OCCUPIED");
+        double occupancyRate = 0;
+        if (totalRooms > 0) {
+            occupancyRate = ((double) occupiedRooms / totalRooms) * 100;
+        }
+
+
+        // RESPONSE =====================================================
+        return BookingStatisticsResponse.builder()
+                .totalBookings(totalBookings)
+                .checkedInToday(checkedInToday)
+                .cancelledBookings(cancelledBookings)
+                .occupancyRate(
+                        Math.round(occupancyRate * 100.0) / 100.0
+                )
+                .totalRevenue(totalRevenue)
+                .build();
+    }
 }

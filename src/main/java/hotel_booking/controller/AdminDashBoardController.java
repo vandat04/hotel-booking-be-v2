@@ -1,8 +1,10 @@
 package hotel_booking.controller;
 
 import hotel_booking.dto.request.BookingDashboardRequest;
+import hotel_booking.dto.response.BookingStatisticsResponse;
 import hotel_booking.dto.response.ReviewStatisticsResponse;
 import hotel_booking.dto.response.RoomTypeBookingStatsResponse;
+import hotel_booking.service.BookingService;
 import hotel_booking.service.ReviewService;
 import hotel_booking.service.RoomTypeService;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +22,7 @@ public class AdminDashBoardController {
 
     private final RoomTypeService roomTypeService;
     private final ReviewService reviewService;
+    private final BookingService bookingService;
 
     // ================= STATISTIC RATE ROOM TYPE =================
     @GetMapping("/room-type-statistic")
@@ -40,5 +43,11 @@ public class AdminDashBoardController {
     @GetMapping("/review-rate-statistic")
     public ReviewStatisticsResponse getReviewStatistics() {
         return reviewService.getReviewStatistics();
+    }
+
+    // ================= BOOKING DASHBOARD =================
+    @GetMapping("/booking-statistic")
+    public BookingStatisticsResponse getBookingStatistics() {
+        return bookingService.getBookingStatistics();
     }
 }

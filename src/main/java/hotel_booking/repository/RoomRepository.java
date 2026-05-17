@@ -51,4 +51,8 @@ public interface RoomRepository extends JpaRepository<Room, Integer> {
             Integer roomTypeId,
             Pageable pageable
     );
+
+    long countByIsActiveTrue();
+
+    long countByStatus(String status);
 }
