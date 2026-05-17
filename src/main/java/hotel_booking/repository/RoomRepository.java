@@ -2,6 +2,8 @@ package hotel_booking.repository;
 
 
 import hotel_booking.entity.Room;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -21,25 +23,6 @@ public interface RoomRepository extends JpaRepository<Room, Integer> {
             """)
     int countTotalRooms(@Param("roomTypeId") Integer roomTypeId);
 
-    //    @Query("""
-//            SELECT r
-//            FROM Room r
-//            WHERE r.roomType.id = :roomTypeId
-//            AND r.isActive = true
-//            AND r.status = 'ACTIVE'
-//            AND NOT EXISTS (
-//                SELECT 1
-//                FROM RoomSchedule rs
-//                WHERE rs.room.id = r.id
-//                AND rs.startAt < :checkOut
-//                AND rs.endAt > :checkIn
-//            )
-//            """)
-//    List<Room> findAvailableRooms(
-//            Integer roomTypeId,
-//            LocalDateTime checkIn,
-//            LocalDateTime checkOut
-//    );
     @Query("""
             SELECT r
             FROM Room r
@@ -56,5 +39,16 @@ public interface RoomRepository extends JpaRepository<Room, Integer> {
             Integer roomTypeId,
             LocalDateTime checkIn,
             LocalDateTime checkOut
+    );
+
+    boolean existsByRoomNumber(String roomNumber);
+
+    boolean existsByRoomNumberAndIdNot(String roomNumber, Integer id);
+
+    Page<Room> findAllByIsActiveTrue(Pageable pageable);
+
+    Page<Room> findByRoomTypeIdAndIsActiveTrue(
+            Integer roomTypeId,
+            Pageable pageable
     );
 }

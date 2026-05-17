@@ -48,4 +48,7 @@ public class Room {
 
     @OneToMany(mappedBy = "room")
     private List<RoomSchedule> roomSchedules;
+
+    @OneToMany(mappedBy = "room")
+    private List<CleaningTask> cleaningTasks;
 }

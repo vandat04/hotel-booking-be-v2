@@ -86,4 +86,7 @@ public class Booking {
             cascade = CascadeType.ALL,
             orphanRemoval = true)
     private List<Invoice> invoices;
+
+    @OneToMany(mappedBy = "booking")
+    private List<CleaningTask> cleaningTasks;
 }

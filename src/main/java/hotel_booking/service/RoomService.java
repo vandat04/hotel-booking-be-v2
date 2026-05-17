@@ -1,0 +1,196 @@
+package hotel_booking.service;
+
+import hotel_booking.dto.request.CreateRoomRequest;
+import hotel_booking.dto.request.PaginationRequest;
+import hotel_booking.dto.request.UpdateRoomRequest;
+import hotel_booking.dto.response.PageResponse;
+import hotel_booking.dto.response.RoomResponse;
+import hotel_booking.entity.Room;
+import hotel_booking.entity.RoomType;
+import hotel_booking.repository.CleaningTaskRepository;
+import hotel_booking.repository.RoomRepository;
+import hotel_booking.repository.RoomScheduleRepository;
+import hotel_booking.repository.RoomTypeRepository;
+import hotel_booking.util.RoomPaginationUtil;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class RoomService {
+
+    private final RoomTypeRepository roomTypeRepository;
+    private final RoomRepository roomRepository;
+    private final CleaningTaskRepository cleaningTaskRepository;
+    private final RoomScheduleRepository roomScheduleRepository;
+
+    public RoomResponse toResponse(Room room) {
+        return RoomResponse.builder()
+                .id(room.getId())
+                .roomNumber(room.getRoomNumber())
+                .floor(room.getFloor())
+                .allocatedFor(room.getAllocatedFor())
+                .status(room.getStatus())
+                .isActive(room.getIsActive())
+                .roomTypeId(room.getRoomType().getId())
+                .roomTypeName(room.getRoomType().getName())
+                .build();
+    }
+
+    // ==================================
+    // ========= CREATE ROOM  =========
+    // ==================================
+    public RoomResponse createRoom(CreateRoomRequest request) {
+        // ===== CHECK ROOM TYPE =====
+        RoomType roomType = roomTypeRepository.findById(request.getRoomTypeId())
+                .orElseThrow(() -> new RuntimeException("ROOM_TYPE_NOT_FOUND"));
+        // ===== CHECK DUPLICATE ROOM NUMBER =====
+        if (roomRepository.existsByRoomNumber(request.getRoomNumber())) {
+            throw new RuntimeException("ROOM_NUMBER_ALREADY_EXISTS");
+        }
+        // ===== VALIDATE ALLOCATED FOR =====
+        String allocatedFor = request.getAllocatedFor();
+
+        if (allocatedFor == null || (!allocatedFor.equals("DAILY") && !allocatedFor.equals("HOURLY"))) {
+            allocatedFor = "DAILY";
+        }
+
+        // ===== CREATE ROOM =====
+        Room room = Room.builder()
+                .roomType(roomType)
+                .roomNumber(request.getRoomNumber())
+                .floor(request.getFloor())
+                .allocatedFor(allocatedFor)
+                .status("READY")
+                .isActive(true)
+                .build();
+
+        roomRepository.save(room);
+
+        return toResponse(room);
+    }
+
+    // ==================================
+    // ========= UPDATE ROOM INFO =========
+    // ==================================
+    public RoomResponse updateRoom(
+            Integer roomId,
+            UpdateRoomRequest request
+    ) {
+        // ===== FIND ROOM =====
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new RuntimeException("ROOM_NOT_FOUND"));
+
+        // ===== CHECK ROOM TYPE =====
+        RoomType roomType = roomTypeRepository.findById(request.getRoomTypeId())
+                .orElseThrow(() -> new RuntimeException("ROOM_TYPE_NOT_FOUND"));
+
+        // ===== CHECK DUPLICATE ROOM NUMBER =====
+        if (roomRepository.existsByRoomNumberAndIdNot(request.getRoomNumber(), roomId)) {
+            throw new RuntimeException("ROOM_NUMBER_ALREADY_EXISTS");
+        }
+
+        // ===== VALIDATE ALLOCATED FOR =====
+        String allocatedFor = request.getAllocatedFor();
+
+        if (!allocatedFor.equals("DAILY") && !allocatedFor.equals("HOURLY")) {
+            throw new RuntimeException("INVALID_ALLOCATED_FOR");
+        }
+
+        // ===== VALIDATE STATUS =====
+        String status = request.getStatus();
+
+        if (!status.equals("READY") && !status.equals("DIRTY") && !status.equals("MAINTENANCE")) {
+            throw new RuntimeException("INVALID_ROOM_STATUS");
+        }
+
+        // ===== UPDATE ROOM =====
+        room.setRoomType(roomType);
+        room.setRoomNumber(request.getRoomNumber());
+        room.setFloor(request.getFloor());
+        room.setAllocatedFor(allocatedFor);
+        room.setStatus(status);
+        room.setIsActive(request.getIsActive());
+        roomRepository.save(room);
+        return toResponse(room);
+    }
+
+    // ==================================
+    // ========= DELETE ROOM =========
+    // ==================================
+    @Transactional
+    public void deleteRoom(Integer roomId) {
+
+        // ===== FIND ROOM =====
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new RuntimeException("ROOM_NOT_FOUND"));
+
+        // ===== CHECK USED =====
+       // boolean hasCleaningTask = cleaningTaskRepository.existsByRoomId(roomId);
+        boolean hasRoomSchedule = roomScheduleRepository.existsByRoomId(roomId);
+
+        // ===== SOFT DELETE =====
+        //if (hasCleaningTask || hasRoomSchedule) {
+        if (hasRoomSchedule) {
+            room.setIsActive(false);
+            roomRepository.save(room);
+            return;
+        }
+
+        // ===== HARD DELETE =====
+        roomRepository.delete(room);
+    }
+
+    // ==================================
+    // ========= VIEW ROOM LIST =========
+    // ==================================
+    public PageResponse<RoomResponse> getAllRooms(
+            Integer roomTypeId,
+            PaginationRequest request
+    ) {
+
+        Pageable pageable = RoomPaginationUtil.build(request);
+        Page<Room> roomPage;
+
+        // ===== FILTER ROOM TYPE =====
+        if (roomTypeId != null) {
+            roomPage = roomRepository.findByRoomTypeIdAndIsActiveTrue(roomTypeId, pageable);
+        } else {
+
+            // ===== GET ALL ROOM =====
+            roomPage = roomRepository.findAllByIsActiveTrue(pageable);
+        }
+
+        // ===== MAP RESPONSE =====
+        List<RoomResponse> content = roomPage.getContent()
+                .stream()
+                .map(this::toResponse)
+                .toList();
+
+        return PageResponse.<RoomResponse>builder()
+                .content(content)
+                .page(roomPage.getNumber())
+                .size(roomPage.getSize())
+                .totalElements(roomPage.getTotalElements())
+                .totalPages(roomPage.getTotalPages())
+                .last(roomPage.isLast())
+                .build();
+    }
+
+    // ==================================
+    // ========= VIEW ROOM DETAIL =========
+    // ==================================
+    public RoomResponse getRoomDetail(Integer roomId) {
+        // ===== FIND ROOM =====
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new RuntimeException("ROOM_NOT_FOUND"));
+
+        // ===== MAP RESPONSE =====
+        return toResponse(room);
+    }
+}
