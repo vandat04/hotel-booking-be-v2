@@ -9,4 +9,6 @@ import java.util.Optional;
 public interface RoomKeyRepository extends JpaRepository<RoomKey, Integer> {
 
     Optional<RoomKey> findByRoomSchedule_Id(Integer roomScheduleId);
+
+    Optional<RoomKey> findByRoomScheduleId(Integer roomScheduleId);
 }

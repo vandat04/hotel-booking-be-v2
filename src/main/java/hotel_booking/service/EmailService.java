@@ -24,50 +24,12 @@ public class EmailService {
         mailSender.send(message);
     }
 
-
-//    public void sendBookingConfirmation(Booking booking, String mes) {
-//
-//        SimpleMailMessage message = new SimpleMailMessage();
-//        User user = userRepository.findById(booking.getUserId()).orElseThrow(() -> new RuntimeException("User not found"));
-//        message.setTo(user.getEmail()); // 🔥 lấy từ User sau
-//        message.setSubject("Booking Confirmation");
-//
-//        message.setText(
-//                "Booking ID: " + booking.getId() +
-//                        "\nCheck-in: " + booking.getCheckIn() +
-//                        "\nCheck-out: " + booking.getCheckOut() +
-//                        "\nStatus: CONFIRMED" + mes
-//        );
-//
-//        mailSender.send(message);
-//    }
-
-    //    public void sendCustomerNotification(Booking booking, String mes) {
-//
-//        SimpleMailMessage message = new SimpleMailMessage();
-//        User user = userRepository.findById(booking.getUserId()).orElseThrow(() -> new RuntimeException("User not found"));
-//        message.setTo(user.getEmail()); // 🔥 lấy từ User sau
-//        message.setSubject("Booking Confirmation");
-//
-//        message.setText(
-//                "Booking ID: " + booking.getId() +
-//                        "\nCheck-in: " + booking.getCheckIn() +
-//                        "\nCheck-out: " + booking.getCheckOut() +
-//                        "\nStatus: CONFIRMED" + mes
-//        );
-//
-//        mailSender.send(message);
-//    }
-
     // ================= SEND SIMPLE EMAIL =================
     public void sendCustomerEmail(String to, String subject, String content) {
-
         SimpleMailMessage message = new SimpleMailMessage();
-
         message.setTo(to);
         message.setSubject(subject);
         message.setText(content);
-
         mailSender.send(message);
     }
 }

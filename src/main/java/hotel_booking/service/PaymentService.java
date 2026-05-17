@@ -21,6 +21,7 @@ public class PaymentService {
     private final VNPayService vnPayService;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final EmailService emailService;
 
     // ==================================
     // ========= PAYMENT BOOKING =========
@@ -160,8 +161,17 @@ public class PaymentService {
                     .build();
             invoiceRepository.save(invoice);
 
-            User user = userRepository.findById(payment.getBooking().getId()).orElse(null);
-            notificationService.createCustomerNotification(user, booking, "BOOKING ROOM IN CHECK-X", "Payment Success.", "PAYMENT_SUCCESS");
+            Integer userId = payment.getBooking().getCustomer().getId();
+            System.out.println("=====PAYMENT======"+ userId);
+            User user = userRepository.findById(userId).orElse(null);
+            String email = booking.getCustomerEmail();
+
+            // ================= SEND EMAIL =================
+            System.out.println("===email==== "+email);
+            if (email != null && !email.isBlank()) {
+                emailService.sendCustomerEmail(email, "BOOKING ROOM IN CHECK-X", "Payment Success.");
+            }
+            notificationService.createCustomerNotification( user, booking, "BOOKING ROOM IN CHECK-X", "Payment Success.", "PAYMENT_SUCCESS");
 
         } else {
             payment.setStatus("FAILED");

@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.awt.print.Book;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -40,4 +41,50 @@ public interface BookingRepository extends JpaRepository<Booking, Integer> {
             @Param("year") Integer year,
             @Param("month") Integer month
     );
+
+    Page<Booking> findAll(Pageable pageable);
+
+    @Query("""
+                SELECT DISTINCT b
+                FROM Booking b
+                LEFT JOIN b.roomSchedules rs
+                LEFT JOIN rs.room r
+            
+                WHERE (
+                       CAST(b.id AS string) LIKE %:keyword%
+                    OR LOWER(b.customerName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(b.customerPhone) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(b.customerEmail) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(r.roomNumber) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                )
+            """)
+    Page<Booking> searchBookings(
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
+
+    @Query("""
+                SELECT b
+                FROM Booking b
+                WHERE
+                    (:status IS NULL OR b.status = :status)
+                AND (:paymentStatus IS NULL
+                     OR b.paymentStatus = :paymentStatus)
+                AND (:roomTypeId IS NULL
+                     OR b.roomType.id = :roomTypeId)
+                AND (:fromDate IS NULL
+                     OR b.createdAt >= :fromDate)
+                AND (:toDate IS NULL
+                     OR b.createdAt <= :toDate)
+            """)
+    Page<Booking> filterBookings(
+            @Param("status") String status,
+            @Param("paymentStatus") String paymentStatus,
+            @Param("roomTypeId") Integer roomTypeId,
+            @Param("fromDate") LocalDateTime fromDate,
+            @Param("toDate") LocalDateTime toDate,
+            Pageable pageable
+    );
+
+
 }

@@ -1,11 +1,10 @@
 package hotel_booking.service;
 
-import hotel_booking.dto.request.CheckAvailabilityRequest;
-import hotel_booking.dto.request.CreateBookingRequest;
-import hotel_booking.dto.request.PaginationRequest;
+import hotel_booking.dto.request.*;
 import hotel_booking.dto.response.*;
 import hotel_booking.entity.*;
 import hotel_booking.repository.*;
+import hotel_booking.util.BookingPaginationUtil;
 import hotel_booking.util.PaginationUtil;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +31,7 @@ public class BookingService {
     private final RoomKeyRepository roomKeyRepository;
     private final PaymentRepository paymentRepository;
     private final InvoiceRepository invoiceRepository;
+    private final EmailService emailService;
 
     // ==================================
     // ========= CHECK AVAILABLE =========
@@ -196,7 +196,13 @@ public class BookingService {
                 ).toList();
 
         roomScheduleRepository.saveAll(schedules);
+        String email = booking.getCustomerEmail();
 
+        // ================= SEND EMAIL =================
+        System.out.println("===email==== "+email);
+        if (email != null && !email.isBlank()) {
+            emailService.sendCustomerEmail(email, "BOOKING ROOM IN CHECK-X", "Room reservation successful, please process your booking within 1 minute.");
+        }
         notificationService.createCustomerNotification(user, booking, "BOOKING ROOM IN CHECK-X", "Room reservation successful, please process your booking within 1 minute.", "BOOKING_SUCCESS");
 
         return BookingResponse.builder()
@@ -417,6 +423,13 @@ public class BookingService {
         }
 
         User user = userRepository.findById(userId).orElse(null);
+        String email = booking.getCustomerEmail();
+
+        // ================= SEND EMAIL =================
+        System.out.println("===email==== "+email);
+        if (email != null && !email.isBlank()) {
+            emailService.sendCustomerEmail(email, "BOOKING ROOM IN CHECK-X", "Cancel Booking Success.");
+        }
         notificationService.createCustomerNotification(user, booking, "BOOKING ROOM IN CHECK-X", "Cancel Booking Success.", "BOOKING_CANCEL");
 
         roomScheduleRepository.saveAll(roomSchedules);
@@ -487,4 +500,319 @@ public class BookingService {
         // ===== SAVE =====
         bookingRepository.save(booking);
     }
+
+    // ==================================
+    // ======= ADMIN ========
+    // ==================================
+    public AdminBookingResponse toResponse(Booking booking) {
+
+        return AdminBookingResponse.builder()
+
+                .id(booking.getId())
+
+                // ===== CUSTOMER =====
+                .customerId(
+                        booking.getCustomer() != null
+                                ? booking.getCustomer().getId()
+                                : null
+                )
+                .customerName(booking.getCustomerName())
+                .customerPhone(booking.getCustomerPhone())
+                .customerEmail(booking.getCustomerEmail())
+
+                // ===== ROOM TYPE =====
+                .roomTypeId(booking.getRoomType().getId())
+                .roomTypeName(booking.getRoomType().getName())
+
+                // ===== BOOKING =====
+                .requestedQuantity(booking.getRequestedQuantity())
+                .requestedCheckin(booking.getRequestedCheckin())
+                .requestedCheckout(booking.getRequestedCheckout())
+                .bookingType(booking.getBookingType())
+                .bookingSource(booking.getBookingSource())
+                .status(booking.getStatus())
+                .totalAmount(booking.getTotalAmount())
+                .paymentStatus(booking.getPaymentStatus())
+                .createdAt(booking.getCreatedAt())
+
+                .build();
+    }
+
+    // ==================================
+    // ======= ADMIN GET ALL BOOKING  ========
+    // ==================================
+    public PageResponse<AdminBookingResponse> getAllBookings(
+            PaginationRequest request
+    ) {
+
+        Pageable pageable = BookingPaginationUtil.build(request);
+
+        // ===== GET ALL =====
+        Page<Booking> bookingPage =
+                bookingRepository.findAll(pageable);
+
+        // ===== MAP RESPONSE =====
+        List<AdminBookingResponse> content =
+                bookingPage.getContent()
+                        .stream()
+                        .map(this::toResponse)
+                        .toList();
+
+        return PageResponse.<AdminBookingResponse>builder()
+                .content(content)
+                .page(bookingPage.getNumber())
+                .size(bookingPage.getSize())
+                .totalElements(bookingPage.getTotalElements())
+                .totalPages(bookingPage.getTotalPages())
+                .last(bookingPage.isLast())
+                .build();
+    }
+
+    // ==================================
+    // ======= ADMIN SEARCH BOOKING  ========
+    // ==================================
+    public PageResponse<AdminBookingResponse> searchBookings(
+            SearchBookingRequest request,
+            PaginationRequest pagination
+    ) {
+
+        Pageable pageable = BookingPaginationUtil.build(pagination);
+        String keyword = request.getKeyword();
+
+        // ===== DEFAULT EMPTY =====
+        if (keyword == null) {
+            keyword = "";
+        }
+        // ===== SEARCH =====
+        Page<Booking> bookingPage = bookingRepository.searchBookings(keyword.trim(), pageable);
+
+        // ===== MAP RESPONSE =====
+        List<AdminBookingResponse> content =
+                bookingPage.getContent()
+                        .stream()
+                        .map(this::toResponse)
+                        .toList();
+
+        return PageResponse.<AdminBookingResponse>builder()
+                .content(content)
+                .page(bookingPage.getNumber())
+                .size(bookingPage.getSize())
+                .totalElements(bookingPage.getTotalElements())
+                .totalPages(bookingPage.getTotalPages())
+                .last(bookingPage.isLast())
+                .build();
+    }
+
+    // ==================================
+    // ======= FILTER BOOKING  ========
+    // ==================================
+    public PageResponse<AdminBookingResponse> filterBookings(
+            FilterBookingRequest request,
+            PaginationRequest pagination
+    ) {
+
+        Pageable pageable = BookingPaginationUtil.build(pagination);
+
+        // ===== FILTER =====
+        Page<Booking> bookingPage = bookingRepository.filterBookings(
+                        request.getStatus(),
+                        request.getPaymentStatus(),
+                        request.getRoomTypeId(),
+                        request.getFromDate(),
+                        request.getToDate(),
+                        pageable
+                );
+
+        // ===== MAP RESPONSE =====
+        List<AdminBookingResponse> content =
+                bookingPage.getContent()
+                        .stream()
+                        .map(this::toResponse)
+                        .toList();
+
+        // ===== RESPONSE =====
+        return PageResponse.<AdminBookingResponse>builder()
+                .content(content)
+                .page(bookingPage.getNumber())
+                .size(bookingPage.getSize())
+                .totalElements(bookingPage.getTotalElements())
+                .totalPages(bookingPage.getTotalPages())
+                .last(bookingPage.isLast())
+                .build();
+    }
+
+    // ==================================
+    // ======= VIEW BOOKING DETAIL BY ADMIN ========
+    // ==================================
+    public AdminBookingDetailResponse getAdminBookingDetail(Integer bookingId) {
+        // ===== FIND BOOKING =====
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("BOOKING_NOT_FOUND"));
+
+        // ROOM SCHEDULES=====================================================
+        List<AdminRoomScheduleResponse> roomSchedules =
+                booking.getRoomSchedules()
+                        .stream()
+                        .map(schedule -> {
+
+                            // ===== ROOM KEY =====
+                            RoomKey roomKey = roomKeyRepository.findByRoomScheduleId(schedule.getId()).orElse(null);
+                            return AdminRoomScheduleResponse.builder()
+                                    .roomScheduleId(schedule.getId())
+                                    .roomId(schedule.getRoom().getId())
+                                    .roomNumber(schedule.getRoom().getRoomNumber())
+                                    .floor(schedule.getRoom().getFloor())
+                                    .roomStatus(schedule.getRoom().getStatus())
+                                    .allocatedFor(schedule.getRoom().getAllocatedFor())
+                                    .startAt(schedule.getStartAt())
+                                    .endAt(schedule.getEndAt())
+                                    .status(schedule.getStatus())
+
+                                    // ===== ROOM KEY =====
+                                    .roomKeyId(roomKey != null ? roomKey.getId() : null)
+                                    .codeNumber(roomKey != null ? roomKey.getCodeNumber() : null)
+                                    .qrCodeData(roomKey != null ? roomKey.getQrCodeData() : null)
+                                    .roomKeyStatus(roomKey != null ? roomKey.getStatus() : null)
+                                    .activatedAt(roomKey != null ? roomKey.getActivatedAt() : null)
+                                    .expiredAt(roomKey != null ? roomKey.getExpiredAt() : null)
+
+                                    .build();
+                        })
+                        .toList();
+
+        // PAYMENTS=====================================================
+        List<PaymentResponse> payments =
+                booking.getPayments()
+                        .stream()
+                        .map(payment ->
+                                PaymentResponse.builder()
+                                        .id(payment.getId())
+                                        .amount(payment.getAmount())
+                                        .paymentMethod(payment.getPaymentMethod())
+                                        .gatewayName(payment.getGatewayName())
+                                        .paymentType(payment.getPaymentType())
+                                        .status(payment.getStatus())
+                                        .transactionReference(payment.getTransactionReference())
+                                        .paymentDate(payment.getPaymentDate())
+                                        .notes(payment.getNotes())
+                                        .build()
+                        ).toList();
+
+        // RESPONSE=====================================================
+        User customer = booking.getCustomer();
+        RoomType roomType = booking.getRoomType();
+        return AdminBookingDetailResponse.builder()
+                // BOOKING=====================================================
+                .bookingId(booking.getId())
+                .bookingType(booking.getBookingType())
+                .bookingSource(booking.getBookingSource())
+                .bookingStatus(booking.getStatus())
+                .paymentStatus(booking.getPaymentStatus())
+                .requestedQuantity(booking.getRequestedQuantity())
+                .totalAmount(booking.getTotalAmount())
+                .notes(booking.getNotes())
+                .requestedCheckin(booking.getRequestedCheckin())
+                .requestedCheckout(booking.getRequestedCheckout())
+                .createdAt(booking.getCreatedAt())
+                // CUSTOMER=====================================================
+                .customerId(customer != null ? customer.getId() : null)
+                .customerName(booking.getCustomerName())
+                .customerPhone(booking.getCustomerPhone())
+                .customerEmail(booking.getCustomerEmail())
+                .customerUsername(customer != null ? customer.getUsername() : null)
+                .customerAvatar(customer != null ? customer.getAvatarUrl() : null)
+                .customerGender(customer != null ? customer.getGender() : null)
+                .customerDateOfBirth(customer != null ? customer.getDateOfBirth() : null)
+                // ROOM TYPE=====================================================
+                .roomTypeId(roomType.getId())
+                .roomTypeName(roomType.getName())
+                .roomTypeDescription(roomType.getDescription())
+                .pricePerDay(roomType.getPricePerDay())
+                .pricePerHour(roomType.getPricePerHour())
+                .maxAdults(roomType.getMaxAdults())
+                .maxChildren(roomType.getMaxChildren())
+                .bedCount(roomType.getBedCount())
+                .bedType(roomType.getBedType())
+                .roomSizeM2(roomType.getRoomSizeM2())
+                // CHILDREN=====================================================
+                .roomSchedules(roomSchedules)
+                .payments(payments)
+                .build();
+    }
+
+    // ==================================
+    // ======= CANCEL BOOKING  ========
+    // ==================================
+    @Transactional
+    public void cancelBooking(
+            Integer bookingId,
+            CancelBookingRequest request
+    ) {
+        // FIND BOOKING=====================================================
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("BOOKING_NOT_FOUND"));
+
+        // VALIDATE BOOKING STATUS =====================================================
+        if ("CHECKED_IN".equals(booking.getStatus()) || "CHECKED_DAMAGE_ROOM".equals(booking.getStatus()) || "CHECKED_OUT".equals(booking.getStatus())) {
+            throw new RuntimeException("BOOKING_CANNOT_BE_CANCELLED");
+        }
+
+        // ALREADY CANCELLED=====================================================
+        if ("CANCELLED".equals(booking.getStatus())) {
+            throw new RuntimeException("BOOKING_ALREADY_CANCELLED");
+        }
+
+        // UPDATE BOOKING=====================================================
+        booking.setStatus("CANCELLED");
+        booking.setNotes(request.getReason());
+        booking.setUpdatedAt(LocalDateTime.now());
+
+        // PAYMENT LOGIC=====================================================
+        if ("PARTIALLY_PAID".equals(booking.getPaymentStatus()) || "PAID".equals(booking.getPaymentStatus())) {
+            booking.setPaymentStatus("REFUND");
+
+            // UPDATE PAYMENTS=================================================
+            List<Payment> payments = paymentRepository.findByBookingId(bookingId);
+            for (Payment payment : payments) {
+                if ("SUCCESS".equals(payment.getStatus())) {
+                    payment.setStatus("REFUNDED");
+                    String oldNote = payment.getNotes() == null ? "" : payment.getNotes();
+                    payment.setNotes(oldNote + "\nRefund because booking cancelled");
+                    paymentRepository.save(payment);
+                }
+            }
+        }
+
+        bookingRepository.save(booking);
+
+        // CANCEL ROOM SCHEDULES=====================================================
+        List<RoomSchedule> schedules = roomScheduleRepository.findByBookingId(bookingId);
+        for (RoomSchedule schedule : schedules) {
+            schedule.setStatus("CANCELLED");
+            schedule.setUpdatedAt(LocalDateTime.now());
+            roomScheduleRepository.save(schedule);
+
+            // RELEASE ROOM=================================================
+            Room room = schedule.getRoom();
+            if (room != null) {
+                room.setExpectedCheckoutAt(null);
+                room.setStatus("READY");
+                room.setUpdatedAt(LocalDateTime.now());
+                roomRepository.save(room);
+            }
+        }
+
+        // SEND NOTIFICATION =====================================================
+        User user = booking.getCustomer();
+        String email = booking.getCustomerEmail();
+
+        // ================= SEND EMAIL =================
+        System.out.println("===email==== "+email);
+        if (email != null && !email.isBlank()) {
+            emailService.sendCustomerEmail(email, "BOOKING ROOM IN CHECK-X", request.getReason());
+        }
+        notificationService.createCustomerNotification(user, booking, "BOOKING ROOM IN CHECK-X", request.getReason(), "BOOKING_CANCEL");
+
+    }
+
 }

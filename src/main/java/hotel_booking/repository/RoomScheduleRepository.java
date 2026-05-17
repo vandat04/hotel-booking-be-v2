@@ -29,4 +29,5 @@ public interface RoomScheduleRepository extends JpaRepository<RoomSchedule, Inte
     List<RoomSchedule> findByBooking_Id(Integer bookingId);
 
     boolean existsByRoomId(Integer roomId);
-}
+
+    List<RoomSchedule> findByBookingId(Integer bookingId);}

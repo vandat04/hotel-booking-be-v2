@@ -29,20 +29,25 @@ public class NotificationService {
             String message,
             String type
     ) {
-        //=== GUI MAIL
-        emailService.sendCustomerEmail(user.getEmail(), title, message);
-        //=== GUI THONG BAO
-        CustomerNotification notification = CustomerNotification.builder()
-                .user(user)
-                .booking(booking)
-                .title(title)
-                .message(message)
-                .notificationType(type)
-                .sentViaEmail(true)
-                .sentViaAppPush(false)
-                .isRead(false)
-                .createdAt(LocalDateTime.now())
-                .build();
+
+        // ================= HANDLE GUEST =================
+        if (user != null && user.getId() == null) {
+            user = null;
+        }
+
+        // ================= SAVE NOTIFICATION =================
+        CustomerNotification notification =
+                CustomerNotification.builder()
+                        .user(user)
+                        .booking(booking)
+                        .title(title)
+                        .message(message)
+                        .notificationType(type)
+                        .sentViaEmail(true)
+                        .sentViaAppPush(false)
+                        .isRead(false)
+                        .createdAt(LocalDateTime.now())
+                        .build();
 
         notificationRepository.save(notification);
     }
@@ -54,8 +59,7 @@ public class NotificationService {
     ) {
 
         Pageable pageable = PaginationUtil.build(request);
-        Page<CustomerNotification> notificationPage =
-                notificationRepository.findByUser_Id(userId, pageable);
+        Page<CustomerNotification> notificationPage = notificationRepository.findByUser_Id(userId, pageable);
         return notificationPage.map(this::mapToResponse);
     }
 
@@ -64,11 +68,7 @@ public class NotificationService {
     ) {
         return CustomerNotificationResponse.builder()
                 .id(notification.getId())
-                .bookingId(
-                        notification.getBooking() != null
-                                ? notification.getBooking().getId()
-                                : null
-                )
+                .bookingId(notification.getBooking() != null ? notification.getBooking().getId() : null)
                 .title(notification.getTitle())
                 .message(notification.getMessage())
                 .notificationType(notification.getNotificationType())
