@@ -1,13 +1,21 @@
 package hotel_booking.service;
 
 import hotel_booking.dto.request.CreateReviewRequest;
+import hotel_booking.dto.request.PaginationRequest;
+import hotel_booking.dto.request.ReplyReviewRequest;
+import hotel_booking.dto.request.SearchReviewRequest;
+import hotel_booking.dto.response.PageResponse;
+import hotel_booking.dto.response.ReviewResponse;
 import hotel_booking.entity.Booking;
 import hotel_booking.entity.Review;
 import hotel_booking.repository.BookingRepository;
 import hotel_booking.repository.ReviewRepository;
+import hotel_booking.util.PaginationUtil;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.apache.coyote.BadRequestException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -29,7 +37,7 @@ public class ReviewService {
     );
 
     @Transactional
-    public void createReview( Integer customerId, CreateReviewRequest request) throws BadRequestException {
+    public void createReview(Integer customerId, CreateReviewRequest request) throws BadRequestException {
 
         Booking booking = bookingRepository.findById(request.getBookingId())
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
@@ -47,12 +55,15 @@ public class ReviewService {
         // ===== ONLY WITHIN 3 DAYS =====
         LocalDateTime checkOutTime = booking.getRequestedCheckout();
         long days = Duration.between(checkOutTime, LocalDateTime.now()).toDays();
-        if (days > 3) { throw new BadRequestException("Review period expired");}
+        if (days > 3) {
+            throw new BadRequestException("Review period expired");
+        }
 
         // ===== ONLY 1 REVIEW =====
         boolean reviewed = reviewRepository.existsByBooking_Id(booking.getId());
 
-        if (reviewed) {throw new BadRequestException("Booking already reviewed");
+        if (reviewed) {
+            throw new BadRequestException("Booking already reviewed");
         }
 
         // ===== VALIDATE RATING =====
@@ -90,5 +101,165 @@ public class ReviewService {
                 throw new BadRequestException("Comment contains inappropriate content");
             }
         }
+    }
+
+    // ==================================
+    // ======= GET ALL REVIEW BOOKING  ========
+    // ==================================
+    public PageResponse<ReviewResponse> getAllReviews(PaginationRequest request, String replyStatus) {
+
+        Pageable pageable = PaginationUtil.build(request);
+
+        Page<Review> pageResult;
+
+        // ===== DEFAULT: UNREPLIED + NEWEST =====
+        if (replyStatus == null || replyStatus.isBlank() || replyStatus.equalsIgnoreCase("UNREPLIED")) {
+            pageResult = reviewRepository.findByHotelReplyIsNull(pageable);
+        }
+
+        // ===== REPLIED =====
+        else if (replyStatus.equalsIgnoreCase("REPLIED")) {
+            pageResult = reviewRepository.findByHotelReplyIsNotNull(pageable);
+        }
+
+        // ===== ALL =====
+        else {
+            pageResult = reviewRepository.findAll(pageable);
+        }
+
+        List<ReviewResponse> content = pageResult.getContent()
+                .stream()
+                .map(this::toResponse)
+                .toList();
+
+        return PageResponse.<ReviewResponse>builder()
+                .content(content)
+                .page(pageResult.getNumber())
+                .size(pageResult.getSize())
+                .totalElements(pageResult.getTotalElements())
+                .totalPages(pageResult.getTotalPages())
+                .last(pageResult.isLast())
+                .build();
+    }
+
+    public ReviewResponse toResponse(Review review) {
+
+        return ReviewResponse.builder()
+                .id(review.getId())
+                .rating(review.getRating())
+                .comment(review.getComment())
+                .hotelReply(review.getHotelReply())
+                .repliedAt(review.getRepliedAt())
+                .createdAt(review.getCreatedAt())
+
+                // ===== CUSTOMER =====
+                .customer(ReviewResponse.CustomerInfo.builder()
+                        .id(review.getCustomer().getId())
+                        .fullName(review.getCustomer().getFullName()) // hoặc getName()
+                        .email(review.getCustomer().getEmail())
+                        .build())
+
+                // ===== ROOM TYPE =====
+                .roomType(ReviewResponse.RoomTypeInfo.builder()
+                        .id(review.getRoomType().getId())
+                        .name(review.getRoomType().getName())
+                        .roomSizeM2(review.getRoomType().getRoomSizeM2())
+                        .maxAdults(review.getRoomType().getMaxAdults())
+                        .maxChildren(review.getRoomType().getMaxChildren())
+                        .pricePerDay(review.getRoomType().getPricePerDay())
+                        .pricePerHour(review.getRoomType().getPricePerHour())
+                        .build())
+
+                .build();
+    }
+
+
+    // ==================================
+    // ======= GET REVIEW DETAIL  ========
+    // ==================================
+    public ReviewResponse getReviewDetail(Integer id) {
+
+        Review review = reviewRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("REVIEW_NOT_FOUND"));
+
+        return toResponse(review);
+    }
+
+    // ==================================
+    // ======= REPLY REVIEW  ========
+    // ==================================
+    public void replyReview(Integer reviewId, ReplyReviewRequest request) {
+
+        Review review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new RuntimeException("REVIEW_NOT_FOUND"));
+
+        // ===== VALIDATION =====
+        if (request.getReplyContent() == null || request.getReplyContent().isBlank()) {
+            throw new RuntimeException("REPLY_CONTENT_REQUIRED");
+        }
+
+        // ===== UPDATE OR CREATE REPLY =====
+        review.setHotelReply(request.getReplyContent());
+
+        // luôn update lại thời gian reply (dù là lần 1 hay update lại)
+        review.setRepliedAt(LocalDateTime.now());
+        review.setUpdatedAt(LocalDateTime.now());
+        reviewRepository.save(review);
+
+    }
+
+    // ==================================
+    // ======= DELETE REVIEW  ========
+    // ==================================
+    public void deleteReview(Integer reviewId) {
+        Review review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new RuntimeException("REVIEW_NOT_FOUND"));
+
+        reviewRepository.delete(review);
+    }
+
+    // ==================================
+    // ======= SEARCH REVIEW  ========
+    // ==================================
+    public PageResponse<ReviewResponse> searchReviews(
+            SearchReviewRequest request,
+            PaginationRequest pagination
+    ) {
+
+        Pageable pageable = PaginationUtil.build(pagination);
+
+        LocalDateTime fromDate = null;
+        LocalDateTime toDate = null;
+
+        // ===== CONVERT DATE =====
+        if (request.getFromDate() != null) {
+            fromDate = request.getFromDate().atStartOfDay();
+        }
+
+        if (request.getToDate() != null) {
+            toDate = request.getToDate().atTime(23, 59, 59);
+        }
+
+        Page<Review> pageResult = reviewRepository.searchReviews(
+                request.getKeyword(),
+                request.getRating(),
+                fromDate,
+                toDate,
+                pageable
+        );
+
+        List<ReviewResponse> content = pageResult.getContent()
+                .stream()
+                .map(this::toResponse)
+                .toList();
+
+        return PageResponse.<ReviewResponse>builder()
+                .content(content)
+                .page(pageResult.getNumber())
+                .size(pageResult.getSize())
+                .totalElements(pageResult.getTotalElements())
+                .totalPages(pageResult.getTotalPages())
+                .last(pageResult.isLast())
+                .build();
     }
 }

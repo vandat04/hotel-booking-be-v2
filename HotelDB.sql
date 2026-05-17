@@ -405,7 +405,7 @@ CREATE TABLE CustomerNotifications (
     title NVARCHAR(255) NOT NULL,
     message NVARCHAR(MAX) NOT NULL,
 
-    notification_type NVARCHAR(50) NOT NULL CHECK ( notification_type IN ( 'BOOKING_SUCCESS', 'CHECKIN_REMINDER', 'CHECKOUT_REMINDER', 'PAYMENT_SUCCESS', 'BOOKING_FAIL' , 'BOOKING_CANCEL' )),-- Loại thông báo
+    notification_type NVARCHAR(50) NOT NULL CHECK ( notification_type IN ( 'BOOKING_SUCCESS', 'CHECKIN_REMINDER', 'CHECKOUT_REMINDER', 'PAYMENT_SUCCESS', 'BOOKING_FAIL' , 'BOOKING_CANCEL' , 'REPLY_REVIEW')),-- Loại thông báo
 
     -- Kênh gửi
     sent_via_email BIT DEFAULT 0,
