@@ -1,12 +1,22 @@
 package hotel_booking.service;
 
 import hotel_booking.dto.request.PaymentRequest;
+import hotel_booking.dto.request.PaymentSearchRequest;
+import hotel_booking.dto.request.UpdatePaymentStatusRequest;
+import hotel_booking.dto.response.*;
 import hotel_booking.entity.*;
 import hotel_booking.repository.*;
+import hotel_booking.util.PaginationUtil;
+import hotel_booking.util.PaymentPaginationUtil;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 
@@ -192,5 +202,230 @@ public class PaymentService {
         if (!"UNPAID".equalsIgnoreCase(booking.getPaymentStatus())) {
             throw new RuntimeException("Booking already paid");
         }
+    }
+
+    // ==================================
+    // ========= VIEW PAYMENT LIST =========
+    // ==================================
+    public PageResponse<PaymentResponse> viewPaymentList(
+            PaymentSearchRequest request
+    ) {
+
+        Pageable pageable = PaymentPaginationUtil.build(request);
+
+        Page<Payment> paymentPage = paymentRepository.filterPayments(
+                        normalize(request.getKeyword()),
+                        normalize(request.getStatus()),
+                        normalize(request.getPaymentMethod()),
+                        normalize(request.getBookingSource()),
+                        normalize(request.getOtaChannel()),
+                        request.getFromDate() != null ? request.getFromDate().atStartOfDay() : null,
+                        request.getToDate() != null ? request.getToDate().atTime(23, 59, 59) : null,
+                        request.getMinAmount(),
+                        request.getMaxAmount(),
+
+                        pageable
+                );
+
+        Page<PaymentResponse> responsePage = paymentPage.map(this::mapToResponse);
+
+        return PageResponse.<PaymentResponse>builder()
+                .content(responsePage.getContent())
+                .page(responsePage.getNumber())
+                .size(responsePage.getSize())
+                .totalElements(responsePage.getTotalElements())
+                .totalPages(responsePage.getTotalPages())
+                .last(responsePage.isLast())
+                .build();
+    }
+
+    private PaymentResponse mapToResponse(Payment payment) {
+
+        return PaymentResponse.builder()
+                .id(payment.getId())
+                .amount(payment.getAmount())
+                .paymentMethod(payment.getPaymentMethod())
+                .gatewayName(payment.getGatewayName())
+                .paymentType(payment.getPaymentType())
+                .status(payment.getStatus())
+                .transactionReference(payment.getTransactionReference())
+                .paymentDate(payment.getPaymentDate())
+                .notes(payment.getNotes())
+                .build();
+    }
+
+    private String normalize(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        return value.trim();
+    }
+
+    // ==================================
+    // ========= VIEW PAYMENT DETAIL =========
+    // ==================================
+    public PaymentDetailResponse viewPaymentDetail(Integer paymentId) {
+
+        Payment payment = paymentRepository.findDetailById(paymentId)
+                .orElseThrow(() -> new RuntimeException("PAYMENT_NOT_FOUND"));
+
+        Booking booking = payment.getBooking();
+        User customer = booking.getCustomer();
+        return PaymentDetailResponse.builder()
+                // ===== PAYMENT =====
+                .paymentId(payment.getId())
+                .amount(payment.getAmount())
+                .paymentMethod(payment.getPaymentMethod())
+                .gatewayName(payment.getGatewayName())
+                .paymentType(payment.getPaymentType())
+                .status(payment.getStatus())
+                .transactionReference(payment.getTransactionReference())
+                .paymentDate(payment.getPaymentDate())
+                .notes(payment.getNotes())
+
+                // ===== BOOKING =====
+                .bookingId(booking.getId())
+                .bookingType(booking.getBookingType())
+                .bookingSource(booking.getBookingSource())
+                .bookingStatus(booking.getStatus())
+                .paymentStatus(booking.getPaymentStatus())
+                .totalBookingAmount(booking.getTotalAmount())
+                .requestedCheckin(booking.getRequestedCheckin())
+                .requestedCheckout(booking.getRequestedCheckout())
+
+                // ===== CUSTOMER =====
+                .customerId(customer != null ? customer.getId() : null)
+                .customerName(booking.getCustomerName())
+                .customerPhone(booking.getCustomerPhone())
+                .customerEmail(booking.getCustomerEmail())
+
+                // ===== ROOM =====
+                .roomTypeName(booking.getRoomType() != null ? booking.getRoomType().getName() : null)
+                .requestedQuantity(booking.getRequestedQuantity())
+                .rooms(booking.getRoomSchedules().stream().map(this::mapRoomDetail).toList())
+
+                // ===== INVOICE =====
+                .invoiceId(payment.getInvoice() != null ? payment.getInvoice().getId() : null)
+
+                .build();
+    }
+
+    private PaymentDetailResponse.RoomDetail mapRoomDetail(
+            RoomSchedule roomSchedule
+    ) {
+
+        return PaymentDetailResponse.RoomDetail.builder()
+                .roomId(roomSchedule.getRoom() != null ? roomSchedule.getRoom().getId() : null)
+                .roomNumber(roomSchedule.getRoom() != null ? roomSchedule.getRoom().getRoomNumber() : null)
+                .startAt(roomSchedule.getStartAt())
+                .endAt(roomSchedule.getEndAt())
+                .status(roomSchedule.getStatus())
+                .build();
+    }
+
+    // ==================================
+    // ========= UPDATE PAYMENT STATUS =========
+    // ==================================
+    @Transactional
+    public void updatePaymentStatus(
+            Integer paymentId,
+            UpdatePaymentStatusRequest request
+    ) {
+
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new RuntimeException("PAYMENT_NOT_FOUND"));
+
+        String status = normalize(request.getStatus());
+
+        // ===== VALIDATE STATUS =====
+        if (status == null || (!status.equals("SUCCESS") && !status.equals("FAILED") && !status.equals("REFUNDED"))) {
+            throw new RuntimeException("INVALID_PAYMENT_STATUS");
+        }
+
+        // ===== UPDATE STATUS =====
+        payment.setStatus(status);
+
+        // ===== UPDATE NOTE =====
+        if (request.getNotes() != null && !request.getNotes().isBlank()) {
+            payment.setNotes(request.getNotes().trim());
+        }
+
+        paymentRepository.save(payment);
+    }
+
+    // ==================================
+    // ========= DASHBOARD PAYMENT  =========
+    // ==================================
+    public PaymentDashboardResponse getPaymentDashboard() {
+
+        // TODAY=========================================================
+        LocalDate today = LocalDate.now();
+        LocalDateTime todayStart = today.atStartOfDay();
+        LocalDateTime todayEnd = today.atTime(LocalTime.MAX);
+
+        // MONTH========================================================
+        LocalDate firstDayOfMonth = today.withDayOfMonth(1);
+        LocalDate lastDayOfMonth = today.withDayOfMonth(today.lengthOfMonth());
+        LocalDateTime monthStart = firstDayOfMonth.atStartOfDay();
+        LocalDateTime monthEnd = lastDayOfMonth.atTime(LocalTime.MAX);
+
+        return PaymentDashboardResponse.builder()
+
+                // ===== REVENUE =====
+                .totalRevenue(paymentRepository.getTotalRevenue())
+                .todayRevenue(paymentRepository.getRevenueBetween(todayStart, todayEnd))
+                .monthlyRevenue(paymentRepository.getRevenueBetween(monthStart, monthEnd))
+
+                // ===== TRANSACTION =====
+                .totalTransactions(paymentRepository.getTotalTransactions())
+
+                // ===== REFUND =====
+                .totalRefund(paymentRepository.getTotalRefund())
+
+                // ===== OTA =====
+                .otaRevenue(paymentRepository.getOtaRevenue())
+
+                // ===== OCCUPANCY =====
+                .occupancyRevenue(paymentRepository.getOccupancyRevenue())
+
+                .build();
+    }
+
+    // ==================================
+    // ========= DASHBOARD REVENUE  =========
+    // ==================================
+    public RevenueStatisticsResponse getRevenueStatistics() {
+        // TODAY=========================================================
+        LocalDate today = LocalDate.now();
+        LocalDateTime todayStart = today.atStartOfDay();
+        LocalDateTime todayEnd = today.atTime(LocalTime.MAX);
+
+        // MONTH=========================================================
+        LocalDate firstDayOfMonth = today.withDayOfMonth(1);
+        LocalDate lastDayOfMonth = today.withDayOfMonth(today.lengthOfMonth());
+        LocalDateTime monthStart = firstDayOfMonth.atStartOfDay();
+        LocalDateTime monthEnd = lastDayOfMonth.atTime(LocalTime.MAX);
+
+        // YEAR=========================================================
+        LocalDate firstDayOfYear = today.withDayOfYear(1);
+        LocalDate lastDayOfYear = today.withDayOfYear(today.lengthOfYear());
+        LocalDateTime yearStart = firstDayOfYear.atStartOfDay();
+        LocalDateTime yearEnd = lastDayOfYear.atTime(LocalTime.MAX);
+        return RevenueStatisticsResponse.builder()
+                // ===== DAILY =====
+                .dailyRevenue(paymentRepository.getRevenueBetween(todayStart, todayEnd))
+                // ===== MONTHLY =====
+                .monthlyRevenue(paymentRepository.getRevenueBetween(monthStart, monthEnd))
+                // ===== YEARLY =====
+                .yearlyRevenue(paymentRepository.getRevenueBetween(yearStart, yearEnd))
+                // ===== ROOM =====
+                .roomRevenue(paymentRepository.getRoomRevenue())
+                // ===== OTA =====
+                .otaRevenue(paymentRepository.getOtaRevenue())
+                // ===== WALK-IN =====
+                .walkInRevenue(paymentRepository.getWalkInRevenue())
+
+                .build();
     }
 }

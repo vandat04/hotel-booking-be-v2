@@ -1,14 +1,8 @@
 package hotel_booking.controller;
 
 import hotel_booking.dto.request.BookingDashboardRequest;
-import hotel_booking.dto.response.BookingStatisticsResponse;
-import hotel_booking.dto.response.OTADashboardResponse;
-import hotel_booking.dto.response.ReviewStatisticsResponse;
-import hotel_booking.dto.response.RoomTypeBookingStatsResponse;
-import hotel_booking.service.BookingService;
-import hotel_booking.service.OTAChannelService;
-import hotel_booking.service.ReviewService;
-import hotel_booking.service.RoomTypeService;
+import hotel_booking.dto.response.*;
+import hotel_booking.service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +20,7 @@ public class AdminDashBoardController {
     private final ReviewService reviewService;
     private final BookingService bookingService;
     private final OTAChannelService otaChannelService;
+    private final PaymentService paymentService;
 
     // ================= STATISTIC RATE ROOM TYPE =================
     @GetMapping("/room-type-statistic")
@@ -56,7 +51,19 @@ public class AdminDashBoardController {
 
     // ================= OTA DASHBOARD =================
     @GetMapping("/ota-statistic")
-    public OTADashboardResponse getDashboard() {
+    public OTADashboardResponse getOTADashboard() {
         return otaChannelService.getDashboard();
+    }
+
+    // ================= PAYMENT DASHBOARD =================
+    @GetMapping("/payment-dashboard")
+    public PaymentDashboardResponse getPaymentDashboard() {
+        return paymentService.getPaymentDashboard();
+    }
+
+    // ================= REVENUE DASHBOARD =================
+    @GetMapping("/revenue-dashboard")
+    public RevenueStatisticsResponse getRevenueStatistics() {
+        return paymentService.getRevenueStatistics();
     }
 }
