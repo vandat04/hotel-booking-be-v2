@@ -11,10 +11,14 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
+
 @Repository
 public interface RoomTypeRepository extends JpaRepository<RoomType, Integer> {
 
     List<RoomType> findByStatus(Integer status);
+
+    Optional<RoomType> findByName(String name);
 
     Page<RoomType> findByStatusAndPricePerDayBetween(
             Integer status,

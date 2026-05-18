@@ -16,17 +16,18 @@ public class OTAChannel {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(name = "ota_hotel_id")
+    @Column(name = "ota_hotel_id", length = 100)
     private String otaHotelId;
 
+    @Column(name = "name", length = 50)
     private String name;
 
-    @Column(name = "api_key_secret")
+    @Column(name = "api_key_secret", length = 255)
     private String apiKeySecret;
 
-    @Column(name = "webhook_secret")
+    @Column(name = "webhook_secret", length = 255)
     private String webhookSecret;
 
     @Column(name = "is_active")
-    private Boolean isActive;
+    private Boolean isActive = true;
 }

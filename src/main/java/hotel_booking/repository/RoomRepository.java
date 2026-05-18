@@ -55,4 +55,5 @@ public interface RoomRepository extends JpaRepository<Room, Integer> {
     long countByIsActiveTrue();
 
     long countByStatus(String status);
+    
 }

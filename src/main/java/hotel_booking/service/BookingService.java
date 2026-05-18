@@ -38,7 +38,6 @@ public class BookingService {
     // ==================================
     // ========= CHECK AVAILABLE =========
     // ==================================
-
     public CheckAvailabilityResponse checkAvailability(CheckAvailabilityRequest req) {
 
         LocalDateTime now = LocalDateTime.now();
@@ -822,39 +821,65 @@ public class BookingService {
     // STATISTIC BOOKINGS
     // =====================================================
     public BookingStatisticsResponse getBookingStatistics() {
-        // TOTAL BOOKINGS =====================================================
+        // TOTAL BOOKINGS=========================================================
+        // Tất cả booking hợp lệ
         long totalBookings = bookingRepository.count();
 
-        // CHECKED IN TODAY =====================================================
+        // NORMAL BOOKINGS=========================================================
+        // WEB + WALK-IN
+        long totalNormalBookings = bookingRepository.countNormalBookings();
+
+        // OTA BOOKINGS=========================================================
+        // AGODA + BOOKING + EXPEDIA
+        long totalOTABookings = bookingRepository.countOTABookings();
+
+        // CHECKED-IN TODAY=========================================================
+        // Booking check-in hôm nay
         LocalDate today = LocalDate.now();
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
         long checkedInToday = bookingRepository.countByStatusAndRequestedCheckinBetween("CHECKED_IN", startOfDay, endOfDay);
 
-        // CANCELLED BOOKINGS  =====================================================
+        // CANCELLED BOOKINGS=========================================================
         long cancelledBookings = bookingRepository.countByStatus("CANCELLED");
 
-        // REVENUE =====================================================
+        // REVENUE=========================================================
+        // Chỉ tính booking PAID
         BigDecimal totalRevenue = bookingRepository.getTotalRevenue();
 
-        // OCCUPANCY RATE =====================================================
-        long totalRooms = roomRepository.countByIsActiveTrue();
-        long occupiedRooms = roomRepository.countByStatus("OCCUPIED");
+        // TOTAL ACTIVE ROOMS=========================================================
+        // Chỉ tính phòng đang kinh doanh
+        long totalActiveRooms = roomRepository.countByIsActiveTrue();
+
+        // OCCUPIED ROOMS=========================================================
+        // RoomSchedule:
+        // - SCHEDULED
+        // - ACTIVE
+        //
+        // Room:
+        // - isActive = true
+        // - status != MAINTENANCE
+
+        long occupiedRooms = roomScheduleRepository.countOccupiedRooms();
+
+        // OCCUPANCY RATE=========================================================
         double occupancyRate = 0;
-        if (totalRooms > 0) {
-            occupancyRate = ((double) occupiedRooms / totalRooms) * 100;
+        if (totalActiveRooms > 0) {
+            occupancyRate = ((double) occupiedRooms / totalActiveRooms) * 100;
         }
 
-
-        // RESPONSE =====================================================
+        // RESPONSE=========================================================
         return BookingStatisticsResponse.builder()
                 .totalBookings(totalBookings)
+                .totalNormalBookings(totalNormalBookings)
+                .totalOTABookings(totalOTABookings)
                 .checkedInToday(checkedInToday)
                 .cancelledBookings(cancelledBookings)
-                .occupancyRate(
-                        Math.round(occupancyRate * 100.0) / 100.0
-                )
                 .totalRevenue(totalRevenue)
+                .totalActiveRooms(totalActiveRooms)
+                .occupiedRooms(occupiedRooms)
+                .occupancyRate(Math.round(occupancyRate * 100.0) / 100.0)
+
                 .build();
     }
 }

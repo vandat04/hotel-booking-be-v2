@@ -8,12 +8,21 @@ import java.math.BigDecimal;
 @Data
 @Builder
 public class BookingStatisticsResponse {
-    // ===== BOOKING =====
+    // BOOKING
     private Long totalBookings;
+    // BOOKING WEB + WALK-IN
+    private Long totalNormalBookings;
+    // BOOKING OTA
+    private Long totalOTABookings;
+    // CHECK-IN TODAY
     private Long checkedInToday;
+    // CANCELLED
     private Long cancelledBookings;
-    // ===== ROOM =====
-    private Double occupancyRate;
-    // ===== REVENUE =====
+    // REVENUE
     private BigDecimal totalRevenue;
+    // OCCUPANCY
+    private Double occupancyRate;
+    // ROOM
+    private Long totalActiveRooms;
+    private Long occupiedRooms;
 }

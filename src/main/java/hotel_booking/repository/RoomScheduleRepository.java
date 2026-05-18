@@ -30,4 +30,18 @@ public interface RoomScheduleRepository extends JpaRepository<RoomSchedule, Inte
 
     boolean existsByRoomId(Integer roomId);
 
-    List<RoomSchedule> findByBookingId(Integer bookingId);}
+    List<RoomSchedule> findByBookingId(Integer bookingId);
+
+    @Query("""
+                SELECT COUNT(DISTINCT rs.room.id)
+                FROM RoomSchedule rs
+                WHERE rs.status IN (
+                    'SCHEDULED',
+                    'ACTIVE'
+                )
+                AND rs.room.isActive = true
+                AND rs.room.status != 'MAINTENANCE'
+            """)
+    long countOccupiedRooms();
+
+}

@@ -100,10 +100,46 @@ public interface BookingRepository extends JpaRepository<Booking, Integer> {
 
     long countByStatus(String status);
 
+    // TOTAL REVENUE ==========================================
     @Query("""
-            SELECT COALESCE(SUM(b.totalAmount), 0)
-            FROM Booking b
-            WHERE b.paymentStatus IN ('PAID', 'PARTIALLY_PAID')
-            """)
+        SELECT COALESCE(SUM(b.totalAmount),0)
+        FROM Booking b
+        WHERE b.paymentStatus = 'PAID'
+        AND b.status NOT IN (
+            'CANCELLED',
+            'NO_SHOW'
+        )
+    """)
     BigDecimal getTotalRevenue();
+
+    // WEB + WALK-IN ==========================================
+    @Query("""
+        SELECT COUNT(b)
+        FROM Booking b
+        WHERE b.bookingSource IN (
+            'WEB',
+            'WALK-IN'
+        )
+        AND b.status NOT IN (
+            'CANCELLED',
+            'NO_SHOW'
+        )
+    """)
+    long countNormalBookings();
+
+    // OTA ====================================================
+    @Query("""
+        SELECT COUNT(b)
+        FROM Booking b
+        WHERE b.bookingSource IN (
+            'AGODA',
+            'BOOKING',
+            'EXPEDIA'
+        )
+        AND b.status NOT IN (
+            'CANCELLED',
+            'NO_SHOW'
+        )
+    """)
+    long countOTABookings();
 }
