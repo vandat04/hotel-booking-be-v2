@@ -622,6 +622,7 @@ public class BookingService {
                         request.getRoomTypeId(),
                         request.getFromDate(),
                         request.getToDate(),
+                        request.getBookingSource(),
                         pageable
                 );
 

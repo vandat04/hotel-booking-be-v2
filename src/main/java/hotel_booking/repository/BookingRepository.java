@@ -77,6 +77,8 @@ public interface BookingRepository extends JpaRepository<Booking, Integer> {
                      OR b.createdAt >= :fromDate)
                 AND (:toDate IS NULL
                      OR b.createdAt <= :toDate)
+                AND (:bookingSource IS NULL
+                     OR b.bookingSource = :bookingSource)
             """)
     Page<Booking> filterBookings(
             @Param("status") String status,
@@ -84,6 +86,7 @@ public interface BookingRepository extends JpaRepository<Booking, Integer> {
             @Param("roomTypeId") Integer roomTypeId,
             @Param("fromDate") LocalDateTime fromDate,
             @Param("toDate") LocalDateTime toDate,
+            @Param("bookingSource") String bookingSource,
             Pageable pageable
     );
 

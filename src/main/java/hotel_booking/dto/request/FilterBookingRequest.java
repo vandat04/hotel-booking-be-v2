@@ -15,4 +15,6 @@ public class FilterBookingRequest {
     // ===== DATE RANGE =====
     private LocalDateTime fromDate;
     private LocalDateTime toDate;
+
+    private String bookingSource;
 }
