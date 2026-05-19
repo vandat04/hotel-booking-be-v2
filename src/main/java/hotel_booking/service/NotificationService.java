@@ -9,7 +9,9 @@ import hotel_booking.repository.CustomerNotificationRepository;
 import hotel_booking.util.PaginationUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -57,9 +59,14 @@ public class NotificationService {
             Integer userId,
             PaginationRequest request
     ) {
+        Pageable pageable = PageRequest.of(
+                request.getPage(),
+                request.getSize(),
+                Sort.by(Sort.Direction.DESC, "createdAt")
+        );
 
-        Pageable pageable = PaginationUtil.build(request);
-        Page<CustomerNotification> notificationPage = notificationRepository.findByUser_Id(userId, pageable);
+        Page<CustomerNotification> notificationPage =
+                notificationRepository.findByUser_Id(userId, pageable);
         return notificationPage.map(this::mapToResponse);
     }
 

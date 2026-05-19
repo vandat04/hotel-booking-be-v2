@@ -267,9 +267,9 @@ public class BookingService {
     // ==================================
     // ======= GET BOOKING DETAILS ========
     // ==================================
-    public BookingDetailResponse getBookingDetail(Integer bookingId) {
+    public BookingDetailResponse getBookingDetail(Integer userId, Integer bookingId) {
 
-        Booking booking = bookingRepository.findById(bookingId).orElseThrow(() ->
+        Booking booking = bookingRepository.findByIdAndCustomerId(bookingId, userId).orElseThrow(() ->
                 new RuntimeException("Booking not found with id: " + bookingId));
         return mapToBookingDetailResponse(booking);
     }

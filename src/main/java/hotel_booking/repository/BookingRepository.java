@@ -12,9 +12,12 @@ import java.awt.print.Book;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface BookingRepository extends JpaRepository<Booking, Integer> {
+    Optional<Booking> findByIdAndCustomerId( Integer bookingId, Integer customerId);
+
     Page<Booking> findByCustomerIdAndStatusIn(
             Integer customerId,
             List<String> status,

@@ -92,8 +92,7 @@ public class CustomerController {
             @PathVariable Integer bookingId
     ) {
         System.out.println(bookingId);
-        System.out.println(getUserId());
-        return bookingService.getBookingDetail(bookingId);
+        return bookingService.getBookingDetail(getUserId(), bookingId);
     }
 
     // ================= CANCEL BOOKING =================

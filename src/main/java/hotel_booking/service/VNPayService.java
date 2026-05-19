@@ -44,9 +44,10 @@ public class VNPayService {
         for (String fieldName : fieldNames) {
             String value = params.get(fieldName);
             if (value != null && !value.isEmpty()) {
-                hashData.append(fieldName).append("=").append(URLEncoder.encode(value, StandardCharsets.US_ASCII));
+                String encodedValue = URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
+                hashData.append(fieldName).append("=").append(encodedValue);
                 hashData.append("&");
-                query.append(fieldName).append("=").append(URLEncoder.encode(value, StandardCharsets.US_ASCII));
+                query.append(fieldName).append("=").append(encodedValue);
                 query.append("&");
             }
         }
@@ -67,7 +68,8 @@ public class VNPayService {
         for (String fieldName : fieldNames) {
             String value = filtered.get(fieldName);
             if (value != null && !value.isEmpty()) {
-                hashData.append(fieldName).append("=").append(URLEncoder.encode(value, StandardCharsets.US_ASCII));
+                String encodedValue = URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
+                hashData.append(fieldName).append("=").append(encodedValue);
                 hashData.append("&");
             }
         }
@@ -82,9 +84,9 @@ public class VNPayService {
     public String hmacSHA512(String key, String data) {
         try {
             Mac mac = Mac.getInstance("HmacSHA512");
-            SecretKeySpec secretKey = new SecretKeySpec(key.getBytes(), "HmacSHA512");
+            SecretKeySpec secretKey = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA512");
             mac.init(secretKey);
-            byte[] rawHmac = mac.doFinal(data.getBytes());
+            byte[] rawHmac = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
             StringBuilder hex = new StringBuilder(2 * rawHmac.length);
             for (byte b : rawHmac) {
                 String hexStr = Integer.toHexString(0xff & b);

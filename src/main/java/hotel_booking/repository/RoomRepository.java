@@ -29,7 +29,7 @@ public interface RoomRepository extends JpaRepository<Room, Integer> {
             LEFT JOIN r.roomSchedules rs
                 ON rs.startAt < :checkOut
                 AND rs.endAt > :checkIn
-                AND rs.status IN ('SCHEDULED','ACTIVE')
+                AND rs.status IN ('SCHEDULED','ACTIVE', 'HOLD')
             WHERE r.roomType.id = :roomTypeId
             AND r.isActive = true
             AND r.status = 'READY'
