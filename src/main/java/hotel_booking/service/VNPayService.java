@@ -44,17 +44,24 @@ public class VNPayService {
         for (String fieldName : fieldNames) {
             String value = params.get(fieldName);
             if (value != null && !value.isEmpty()) {
-                String encodedValue = URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
-                hashData.append(fieldName).append("=").append(encodedValue);
+                // 1. Build Hash Data using RAW value (NOT URL encoded)
+                hashData.append(fieldName).append("=").append(value);
                 hashData.append("&");
+
+                // 2. Build Query using URL encoded value
+                String encodedValue = URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
                 query.append(fieldName).append("=").append(encodedValue);
                 query.append("&");
             }
         }
         hashData.deleteCharAt(hashData.length() - 1);
         query.deleteCharAt(query.length() - 1);
+        System.out.println("=== VNPAY HASH DATA (RAW): " + hashData.toString());
         String secureHash = hmacSHA512(config.getHashSecret(), hashData.toString());
-        return config.getPayUrl() + "?" + query + "&vnp_SecureHash=" + secureHash;
+        System.out.println("=== VNPAY SECURE HASH: " + secureHash);
+        String finalUrl = config.getPayUrl() + "?" + query + "&vnp_SecureHash=" + secureHash;
+        System.out.println("=== VNPAY GENERATED URL: " + finalUrl);
+        return finalUrl;
     }
 
     public boolean validateSignature(Map<String, String> params) {
@@ -68,8 +75,8 @@ public class VNPayService {
         for (String fieldName : fieldNames) {
             String value = filtered.get(fieldName);
             if (value != null && !value.isEmpty()) {
-                String encodedValue = URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
-                hashData.append(fieldName).append("=").append(encodedValue);
+                // Use RAW value (NOT URL encoded)
+                hashData.append(fieldName).append("=").append(value);
                 hashData.append("&");
             }
         }
@@ -77,7 +84,10 @@ public class VNPayService {
         if (hashData.length() > 0) {
             hashData.deleteCharAt(hashData.length() - 1);
         }
+        System.out.println("=== VNPAY RETURN HASH DATA (RAW): " + hashData.toString());
         String calculatedHash = hmacSHA512(config.getHashSecret(), hashData.toString());
+        System.out.println("=== CALCULATED SECURE HASH: " + calculatedHash);
+        System.out.println("=== VNPAY SECURE HASH FROM PARAMS: " + vnpSecureHash);
         return calculatedHash.equalsIgnoreCase(vnpSecureHash);
     }
 
@@ -97,5 +107,9 @@ public class VNPayService {
         } catch (Exception ex) {
             throw new RuntimeException("Error while hashing", ex);
         }
+    }
+
+    public String getReturnUrl() {
+        return config.getReturnUrl();
     }
 }
