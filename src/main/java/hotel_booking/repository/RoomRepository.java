@@ -55,5 +55,18 @@ public interface RoomRepository extends JpaRepository<Room, Integer> {
     long countByIsActiveTrue();
 
     long countByStatus(String status);
-    
+
+    @Query("SELECT COUNT(r) FROM Room r WHERE r.isActive = true")
+    int countActiveRooms();
+
+    @Query("SELECT COUNT(r) FROM Room r WHERE r.isActive = true AND r.status = 'READY'")
+    int countReadyRooms();
+
+    @Query("""
+                SELECT r
+                FROM Room r
+                JOIN FETCH r.roomType
+                WHERE r.isActive = true
+            """)
+    List<Room> findAllActiveRooms();
 }

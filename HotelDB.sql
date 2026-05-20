@@ -422,3 +422,85 @@ CREATE TABLE CustomerNotifications (
 );
 GO
 
+--------------------------------------------------------
+-- SALARY ATTENDANCE
+--------------------------------------------------------
+CREATE TABLE Shifts (
+    id INT IDENTITY PRIMARY KEY,
+    shift_name NVARCHAR(50) NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    description NVARCHAR(255),
+    is_active BIT DEFAULT 1,
+    CONSTRAINT CK_Shifts_Name_NotEmpty  CHECK (LEN(LTRIM(RTRIM(shift_name))) > 0),
+    CONSTRAINT CK_Shifts_Time_NotNull CHECK (start_time IS NOT NULL AND end_time IS NOT NULL),
+    CONSTRAINT CK_Shifts_Duration_Limit CHECK (DATEDIFF(MINUTE, start_time, end_time) BETWEEN 30 AND 1440),
+    CONSTRAINT CK_Shifts_Time_NotEqual CHECK (start_time <> end_time)
+);
+GO
+
+CREATE TABLE RoleSalaryConfig (
+    id INT IDENTITY PRIMARY KEY,
+    staff_role NVARCHAR(20) NOT NULL UNIQUE  CHECK (staff_role IN ('RECEPTIONIST', 'CLEANER')),
+    base_salary DECIMAL(18,2) NOT NULL DEFAULT 0,
+    is_active BIT DEFAULT 1,
+    created_at DATETIME2 DEFAULT GETDATE(),
+    updated_at DATETIME2 DEFAULT GETDATE(),
+    CONSTRAINT CK_RoleSalaryConfig_BaseSalary_Positive  CHECK (base_salary >= 0),
+    CONSTRAINT CK_RoleSalaryConfig_IsActive    CHECK (is_active IN (0,1))
+);
+GO
+
+CREATE TABLE AssignStaff (
+    id INT IDENTITY PRIMARY KEY,
+    user_id INT NOT NULL, -- Staff
+    salary_id INT NOT NULL, -- Mức Lương
+    shift_id INT NOT NULL, -- Ca làm
+    work_date DATE NOT NULL,
+    CONSTRAINT FK_Assign_RoleSalaryConfig  FOREIGN KEY (salary_id) REFERENCES RoleSalaryConfig(id),
+    CONSTRAINT FK_Assign_Shift  FOREIGN KEY (shift_id) REFERENCES Shifts(id),
+    CONSTRAINT FK_Assign_User  FOREIGN KEY (user_id) REFERENCES Users(id),
+    CONSTRAINT UQ_Assign UNIQUE (user_id, shift_id, work_date)
+);
+GO
+
+CREATE TABLE Attendance (
+    id INT IDENTITY PRIMARY KEY,
+    user_id INT NOT NULL,
+    shift_assignment_id INT NOT NULL,
+    check_in DATETIME2 NULL,
+    check_out DATETIME2 NULL,
+    work_hours DECIMAL(5,2) DEFAULT 0,
+    late_minutes INT DEFAULT 0,
+    early_leave_minutes INT DEFAULT 0,
+    status NVARCHAR(20) DEFAULT 'PRESENT' CHECK (status IN ('PRESENT','ABSENT','LATE','LEAVE')),
+    created_at DATETIME2 DEFAULT GETDATE(),
+    CONSTRAINT FK_Attendance_Assign  FOREIGN KEY (shift_assignment_id) REFERENCES AssignStaff(id),
+    CONSTRAINT FK_Attendance_User FOREIGN KEY (user_id) REFERENCES Users(id)
+);
+GO
+
+CREATE TABLE BonusPenalty (
+    id INT IDENTITY PRIMARY KEY,
+    type NVARCHAR(10) NOT NULL    CHECK (type IN ('BONUS','PENALTY')),
+    amount DECIMAL(18,2) NOT NULL  CHECK (amount > 0),
+    reason NVARCHAR(255),
+    related_date DATE,
+    created_at DATETIME2 DEFAULT GETDATE()
+);
+GO
+
+CREATE TABLE SalarySheet (
+    id INT IDENTITY PRIMARY KEY,
+    user_id INT NOT NULL,
+    salary_id INT NOT NULL,
+    month INT NOT NULL,
+    year INT NOT NULL,
+    total_salary DECIMAL(18,2),
+    status NVARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING','PAID')),
+    created_at DATETIME2 DEFAULT GETDATE(),
+    updated_at DATETIME2 DEFAULT GETDATE(),
+    CONSTRAINT FK_Salary_Role   FOREIGN KEY (salary_id) REFERENCES RoleSalaryConfig(id),
+    CONSTRAINT FK_Salary_User   FOREIGN KEY (user_id) REFERENCES Users(id)
+);
+GO

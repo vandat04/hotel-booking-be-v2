@@ -200,7 +200,7 @@ public class BookingService {
         String email = booking.getCustomerEmail();
 
         // ================= SEND EMAIL =================
-        System.out.println("===email==== "+email);
+        System.out.println("===email==== " + email);
         if (email != null && !email.isBlank()) {
             emailService.sendCustomerEmail(email, "BOOKING ROOM IN CHECK-X", "Room reservation successful, please process your booking within 1 minute.");
         }
@@ -225,6 +225,7 @@ public class BookingService {
                 "CONFIRMED",
                 "CHECKED_IN",
                 "CHECKED_OUT",
+                "CHECKED_DAMAGE_ROOM",
                 "CANCELLED",
                 "NO_SHOW"
         );
@@ -274,7 +275,7 @@ public class BookingService {
         return mapToBookingDetailResponse(booking);
     }
 
-    private BookingDetailResponse mapToBookingDetailResponse(Booking booking) {
+    public BookingDetailResponse mapToBookingDetailResponse(Booking booking) {
         return BookingDetailResponse.builder()
                 .bookingId(booking.getId())
                 .bookingType(booking.getBookingType())
@@ -427,7 +428,7 @@ public class BookingService {
         String email = booking.getCustomerEmail();
 
         // ================= SEND EMAIL =================
-        System.out.println("===email==== "+email);
+        System.out.println("===email==== " + email);
         if (email != null && !email.isBlank()) {
             emailService.sendCustomerEmail(email, "BOOKING ROOM IN CHECK-X", "Cancel Booking Success.");
         }
@@ -437,37 +438,35 @@ public class BookingService {
     }
 
     // ==================================
-    // ========= CANCEL BOOKING =========
+    // ========= REFUND BOOKING =========
     // ==================================
     @Transactional
     public void refundBooking(Integer customerId, Integer bookingId) {
-
         // ===== FIND BOOKING =====
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("BOOKING_NOT_FOUND"));
 
-        // ===== CHECK OWNER =====
-        if (booking.getCustomer() == null
-                || !booking.getCustomer().getId().equals(customerId)) {
-            throw new RuntimeException("FORBIDDEN");
+        // ===== CUSTOMER VALIDATIONS =====
+        if (customerId != null) {
+            // Check Owner
+            if (booking.getCustomer() == null || !booking.getCustomer().getId().equals(customerId)) {
+                throw new RuntimeException("FORBIDDEN");
+            }
+            // Validate Time limit (must be before 1 day)
+            if (LocalDateTime.now().isAfter(booking.getRequestedCheckin().minusDays(1))) {
+                throw new RuntimeException("REFUND_MUST_BE_BEFORE_1_DAY");
+            }
         }
 
-        // ===== VALIDATE STATUS =====
+        // ===== COMMON VALIDATE STATUS =====
         if (!"CONFIRMED".equalsIgnoreCase(booking.getStatus())) {
             throw new RuntimeException("ONLY_CONFIRMED_BOOKING_CAN_REFUND");
         }
-
         if (!"PAID".equalsIgnoreCase(booking.getPaymentStatus())) {
             throw new RuntimeException("BOOKING_NOT_PAID");
         }
 
-        // ===== VALIDATE TIME =====
         LocalDateTime now = LocalDateTime.now();
-
-        if (now.isAfter(
-                booking.getRequestedCheckin().minusDays(1))) {
-            throw new RuntimeException("REFUND_MUST_BE_BEFORE_1_DAY");
-        }
 
         // ===== UPDATE BOOKING =====
         booking.setStatus("CANCELLED");
@@ -476,30 +475,45 @@ public class BookingService {
 
         // ===== UPDATE ROOM SCHEDULE =====
         for (RoomSchedule rs : booking.getRoomSchedules()) {
-
             rs.setStatus("CANCELLED");
             rs.setUpdatedAt(now);
+
+            // Free the room
+            Room room = rs.getRoom();
+            if (room != null) {
+                room.setExpectedCheckoutAt(null);
+                room.setStatus("READY");
+                room.setUpdatedAt(now);
+                roomRepository.save(room);
+            }
         }
 
         // ===== UPDATE PAYMENTS =====
+        String noteSuffix = (customerId == null) ? " | REFUNDED BY RECEPTIONIST AT: " : " | REFUNDED AT: ";
         for (Payment payment : booking.getPayments()) {
-
             if ("SUCCESS".equalsIgnoreCase(payment.getStatus())) {
-
                 payment.setStatus("REFUNDED");
-
-                String oldNotes = payment.getNotes() == null
-                        ? ""
-                        : payment.getNotes();
-
-                payment.setNotes(
-                        oldNotes + " | REFUNDED AT: " + now
-                );
+                String oldNotes = payment.getNotes() == null ? "" : payment.getNotes();
+                payment.setNotes(oldNotes + noteSuffix + now);
             }
         }
 
         // ===== SAVE =====
         bookingRepository.save(booking);
+
+        // ===== SEND NOTIFICATION & EMAIL =====
+        User user = booking.getCustomer();
+        String email = booking.getCustomerEmail();
+        String reason = (customerId == null)
+                ? "Your booking has been refunded and cancelled by the Receptionist."
+                : "You have successfully requested a refund and cancelled your booking.";
+
+        if (email != null && !email.isBlank()) {
+            emailService.sendCustomerEmail(email, "BOOKING REFUND IN CHECK-X", reason);
+        }
+        if (user != null) {
+            notificationService.createCustomerNotification(user, booking, "BOOKING REFUND IN CHECK-X", reason, "BOOKING_CANCEL");
+        }
     }
 
     // ==================================
@@ -616,14 +630,14 @@ public class BookingService {
 
         // ===== FILTER =====
         Page<Booking> bookingPage = bookingRepository.filterBookings(
-                        request.getStatus(),
-                        request.getPaymentStatus(),
-                        request.getRoomTypeId(),
-                        request.getFromDate(),
-                        request.getToDate(),
-                        request.getBookingSource(),
-                        pageable
-                );
+                request.getStatus(),
+                request.getPaymentStatus(),
+                request.getRoomTypeId(),
+                request.getFromDate(),
+                request.getToDate(),
+                request.getBookingSource(),
+                pageable
+        );
 
         // ===== MAP RESPONSE =====
         List<AdminBookingResponse> content =
@@ -809,7 +823,7 @@ public class BookingService {
         String email = booking.getCustomerEmail();
 
         // ================= SEND EMAIL =================
-        System.out.println("===email==== "+email);
+        System.out.println("===email==== " + email);
         if (email != null && !email.isBlank()) {
             emailService.sendCustomerEmail(email, "BOOKING ROOM IN CHECK-X", request.getReason());
         }
@@ -882,4 +896,109 @@ public class BookingService {
 
                 .build();
     }
+
+    // =====================================================
+    // VIEW SẮP CHECK-IN BOOKINGS LIST
+    // =====================================================
+    public PageResponse<BookingUpcomingResponse> getUpcomingCheckIns(
+            PaginationRequest request
+    ) {
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime limit = now.plusMinutes(15);
+
+        Pageable pageable = BookingPaginationUtil.build(request);
+
+        Page<Booking> page = bookingRepository.findUpcomingCheckIn(
+                now,
+                limit,
+                pageable
+        );
+
+        List<BookingUpcomingResponse> content = page.getContent()
+                .stream()
+                .map(b -> BookingUpcomingResponse.builder()
+                        .id(b.getId())
+                        .customerName(b.getCustomerName())
+                        .customerPhone(b.getCustomerPhone())
+
+                        .requestedCheckin(b.getRequestedCheckin())
+                        .requestedCheckout(b.getRequestedCheckout())
+
+                        .status(b.getStatus())
+                        .paymentStatus(b.getPaymentStatus())
+
+                        // 🔥 bổ sung quan trọng cho receptionist
+                        .roomTypeName(
+                                b.getRoomType() != null ? b.getRoomType().getName() : null
+                        )
+                        .requestedQuantity(b.getRequestedQuantity())
+                        .bookingSource(b.getBookingSource())
+
+                        .build()
+                )
+                .toList();
+
+        return PageResponse.<BookingUpcomingResponse>builder()
+                .content(content)
+                .page(page.getNumber())
+                .size(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .last(page.isLast())
+                .build();
+    }
+
+    // =====================================================
+    // VIEW SẮP CHECK-OUT BOOKINGS LIST
+    // =====================================================
+    public PageResponse<BookingUpcomingResponse> getUpcomingCheckOuts(
+            PaginationRequest request
+    ) {
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime limit = now.plusMinutes(15);
+
+        Pageable pageable = BookingPaginationUtil.build(request);
+
+        Page<Booking> page = bookingRepository.findUpcomingCheckOut(
+                now,
+                limit,
+                pageable
+        );
+
+        List<BookingUpcomingResponse> content = page.getContent()
+                .stream()
+                .map(b -> BookingUpcomingResponse.builder()
+                        .id(b.getId())
+                        .customerName(b.getCustomerName())
+                        .customerPhone(b.getCustomerPhone())
+
+                        .requestedCheckin(b.getRequestedCheckin())
+                        .requestedCheckout(b.getRequestedCheckout())
+
+                        .status(b.getStatus())
+                        .paymentStatus(b.getPaymentStatus())
+
+                        // 👇 receptionist cần
+                        .roomTypeName(
+                                b.getRoomType() != null ? b.getRoomType().getName() : null
+                        )
+                        .requestedQuantity(b.getRequestedQuantity())
+                        .bookingSource(b.getBookingSource())
+
+                        .build()
+                )
+                .toList();
+
+        return PageResponse.<BookingUpcomingResponse>builder()
+                .content(content)
+                .page(page.getNumber())
+                .size(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .last(page.isLast())
+                .build();
+    }
+
 }

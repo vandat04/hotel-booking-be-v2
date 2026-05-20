@@ -7,14 +7,12 @@ GO
 -- =========================================
 INSERT INTO Users (username, password_hash, provider, email, email_verified, full_name, phone, avatar_url, gender, date_of_birth, role, status, created_at, updated_at)
 VALUES
--- ADMIN
-( 'admin_user', '$2a$10$OwEVq/j00c/HhMfHUkJ9JuMVCZGv3XrmXYCWApMqtFO1HdHWN.SdG','LOCAL', 'admin@example.com', 1, 'Admin User', '0901000001', 'https://example.com/avatar/admin.png', 'MALE', '1995-01-01', 'ADMIN', 1, GETDATE(), GETDATE() ),
--- CUSTOMER
-( 'customer_user', '$2a$10$OwEVq/j00c/HhMfHUkJ9JuMVCZGv3XrmXYCWApMqtFO1HdHWN.SdG', 'LOCAL', 'customer@example.com', 1, 'Customer User', '0901000002', 'https://example.com/avatar/customer.png', 'FEMALE', '2000-05-15', 'CUSTOMER', 1, GETDATE(), GETDATE() ),
--- CLEANER
-( 'cleaner_user', '$2a$10$OwEVq/j00c/HhMfHUkJ9JuMVCZGv3XrmXYCWApMqtFO1HdHWN.SdG', 'LOCAL', 'cleaner@example.com', 1, 'Cleaner User', '0901000003', 'https://example.com/avatar/cleaner.png', 'MALE', '1998-08-20', 'CLEANER', 1, GETDATE(), GETDATE() ),
--- RECEPTIONIST
-( 'reception_user', '$2a$10$OwEVq/j00c/HhMfHUkJ9JuMVCZGv3XrmXYCWApMqtFO1HdHWN.SdG', 'LOCAL', 'reception@example.com', 1, 'Receptionist User', '0901000004', 'https://example.com/avatar/reception.png', 'FEMALE', '1997-11-10', 'RECEPTIONIST', 1, GETDATE(), GETDATE() );
+('admin_user', '$2a$10$OwEVq/j00c/HhMfHUkJ9JuMVCZGv3XrmXYCWApMqtFO1HdHWN.SdG','LOCAL', 'admin@example.com', 1, 'Admin User', '0901000001', 'https://example.com/avatar/admin.png', 'MALE', '1995-01-01', 'ADMIN', 1, GETDATE(), GETDATE()),
+('customer_user', '$2a$10$OwEVq/j00c/HhMfHUkJ9JuMVCZGv3XrmXYCWApMqtFO1HdHWN.SdG', 'LOCAL', 'customer@example.com', 1, 'Customer User', '0901000002', 'https://example.com/avatar/customer.png', 'FEMALE', '2000-05-15', 'CUSTOMER', 1, GETDATE(), GETDATE()),
+('cleaner_user1', '$2a$10$OwEVq/j00c/HhMfHUkJ9JuMVCZGv3XrmXYCWApMqtFO1HdHWN.SdG', 'LOCAL', 'cleaner@example.com', 1, 'Cleaner User A', '0901000003', 'https://example.com/avatar/cleaner.png', 'MALE', '1999-05-25', 'CLEANER', 1, GETDATE(), GETDATE()),
+('cleaner_user2', '$2a$10$OwEVq/j00c/HhMfHUkJ9JuMVCZGv3XrmXYCWApMqtFO1HdHWN.SdG', 'LOCAL', 'cleaner2@example.com', 1, 'Cleaner User B', '0901000004', 'https://example.com/avatar/cleaner.png', 'FEMALE', '1998-08-20', 'CLEANER', 1, GETDATE(), GETDATE()),
+('reception_user1', '$2a$10$OwEVq/j00c/HhMfHUkJ9JuMVCZGv3XrmXYCWApMqtFO1HdHWN.SdG', 'LOCAL', 'reception1@example.com', 1, 'Receptionist User A', '0901000005', 'https://example.com/avatar/reception.png', 'MALE', '1997-11-10', 'RECEPTIONIST', 1, GETDATE(), GETDATE()),
+('reception_user2', '$2a$10$OwEVq/j00c/HhMfHUkJ9JuMVCZGv3XrmXYCWApMqtFO1HdHWN.SdG', 'LOCAL', 'reception2@example.com', 1, 'Receptionist User B', '0901000006', 'https://example.com/avatar/reception.png', 'FEMALE', '2000-01-01', 'RECEPTIONIST', 1, GETDATE(), GETDATE());
 GO
 
 -- ==========================================
@@ -103,3 +101,22 @@ GO
 INSERT INTO RoomSchedules (booking_id, room_id, start_at, end_at, status, created_at, updated_at) VALUES
 (1, 1, '2024-05-10 14:00:00', '2024-05-12 12:00:00', 'SCHEDULED', '2024-05-01 10:00:00', '2024-05-12 12:15:00' );
 GO
+
+--------------------------------------------------------
+-- SALARY - ATTENDANCE
+--------------------------------------------------------
+INSERT INTO Shifts (shift_name, start_time, end_time, description, is_active) VALUES
+( N'DAY SHIFT', '00:00:01', '12:00:00', N'Ca ngày 12 giờ', 1),
+( N'NIGHT SHIFT','12:00:00', '23:59:00',N'Ca đêm (tạm 6 tiếng - DB không hỗ trợ qua ngày)', 1);
+GO
+
+INSERT INTO RoleSalaryConfig ( staff_role, base_salary, is_active, created_at) VALUES
+('CLEANER', 6000000, 1, GETDATE()),
+('RECEPTIONIST', 8000000, 1, GETDATE());
+GO
+
+
+
+
+
+

@@ -2,6 +2,7 @@ package hotel_booking.service;
 
 import hotel_booking.dto.request.PaginationRequest;
 import hotel_booking.dto.response.CustomerNotificationResponse;
+import hotel_booking.dto.response.PageResponse;
 import hotel_booking.entity.Booking;
 import hotel_booking.entity.CustomerNotification;
 import hotel_booking.entity.User;
@@ -15,6 +16,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -84,4 +86,33 @@ public class NotificationService {
                 .createdAt(notification.getCreatedAt())
                 .build();
     }
+
+    // ================= VIEW ALL NOTIFICATION =================
+    public PageResponse<CustomerNotificationResponse> getAll(PaginationRequest request) {
+
+        // mặc định sort theo mới nhất
+        if (request.getSortBy() == null || request.getSortBy().isBlank()) {
+            request.setSortBy("createdAt");
+            request.setDirection("desc");
+        }
+
+        Pageable pageable = PaginationUtil.build(request);
+
+        Page<CustomerNotification> page = notificationRepository.findAll(pageable);
+
+        List<CustomerNotificationResponse> content = page.getContent()
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+
+        return PageResponse.<CustomerNotificationResponse>builder()
+                .content(content)
+                .page(page.getNumber())
+                .size(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .last(page.isLast())
+                .build();
+    }
+
 }

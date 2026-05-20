@@ -4,6 +4,7 @@ import hotel_booking.entity.Booking;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -16,7 +17,7 @@ import java.util.Optional;
 
 @Repository
 public interface BookingRepository extends JpaRepository<Booking, Integer> {
-    Optional<Booking> findByIdAndCustomerId( Integer bookingId, Integer customerId);
+    Optional<Booking> findByIdAndCustomerId(Integer bookingId, Integer customerId);
 
     Page<Booking> findByCustomerIdAndStatusIn(
             Integer customerId,
@@ -105,44 +106,81 @@ public interface BookingRepository extends JpaRepository<Booking, Integer> {
 
     // TOTAL REVENUE ==========================================
     @Query("""
-        SELECT COALESCE(SUM(b.totalAmount),0)
-        FROM Booking b
-        WHERE b.paymentStatus = 'PAID'
-        AND b.status NOT IN (
-            'CANCELLED',
-            'NO_SHOW'
-        )
-    """)
+                SELECT COALESCE(SUM(b.totalAmount),0)
+                FROM Booking b
+                WHERE b.paymentStatus = 'PAID'
+                AND b.status NOT IN (
+                    'CANCELLED',
+                    'NO_SHOW'
+                )
+            """)
     BigDecimal getTotalRevenue();
 
     // WEB + WALK-IN ==========================================
     @Query("""
-        SELECT COUNT(b)
-        FROM Booking b
-        WHERE b.bookingSource IN (
-            'WEB',
-            'WALK-IN'
-        )
-        AND b.status NOT IN (
-            'CANCELLED',
-            'NO_SHOW'
-        )
-    """)
+                SELECT COUNT(b)
+                FROM Booking b
+                WHERE b.bookingSource IN (
+                    'WEB',
+                    'WALK-IN'
+                )
+                AND b.status NOT IN (
+                    'CANCELLED',
+                    'NO_SHOW'
+                )
+            """)
     long countNormalBookings();
 
     // OTA ====================================================
     @Query("""
-        SELECT COUNT(b)
-        FROM Booking b
-        WHERE b.bookingSource IN (
-            'AGODA',
-            'BOOKING',
-            'EXPEDIA'
-        )
-        AND b.status NOT IN (
-            'CANCELLED',
-            'NO_SHOW'
-        )
-    """)
+                SELECT COUNT(b)
+                FROM Booking b
+                WHERE b.bookingSource IN (
+                    'AGODA',
+                    'BOOKING',
+                    'EXPEDIA'
+                )
+                AND b.status NOT IN (
+                    'CANCELLED',
+                    'NO_SHOW'
+                )
+            """)
     long countOTABookings();
+
+    @Query("""
+                SELECT b
+                FROM Booking b
+                WHERE b.status = 'CONFIRMED'
+                  AND b.paymentStatus = 'PAID'
+                  AND b.requestedCheckin BETWEEN :now AND :limitTime
+            """)
+    Page<Booking> findUpcomingCheckIn(
+            @Param("now") LocalDateTime now,
+            @Param("limitTime") LocalDateTime limitTime,
+            Pageable pageable
+    );
+
+    @Query("""
+                SELECT b
+                FROM Booking b
+                WHERE b.status = 'CHECKED_IN'
+                  AND b.requestedCheckout BETWEEN :now AND :limitTime
+            """)
+    Page<Booking> findUpcomingCheckOut(
+            @Param("now") LocalDateTime now,
+            @Param("limitTime") LocalDateTime limitTime,
+            Pageable pageable
+    );
+
+    @Modifying
+    @Query("""
+                UPDATE Booking b
+                SET b.status = 'CANCELLED',
+                    b.updatedAt = CURRENT_TIMESTAMP
+                WHERE b.createdAt <= :timeLimit
+                  AND b.paymentStatus = 'UNPAID'
+                  AND b.status = 'PENDING'
+            """)
+    int cancelUnpaidBookings(LocalDateTime timeLimit);
+
 }

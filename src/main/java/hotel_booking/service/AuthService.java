@@ -30,7 +30,7 @@ public class AuthService {
     private final InvalidTokenRepository invalidTokenRepository;
 
     // =============================
-    private void validateAge(LocalDate dateOfBirth) {
+    public void validateAge(LocalDate dateOfBirth) {
 
         if (dateOfBirth == null) {
             throw new RuntimeException("Date of birth is required");

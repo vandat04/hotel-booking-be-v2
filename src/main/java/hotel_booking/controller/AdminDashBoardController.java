@@ -21,6 +21,7 @@ public class AdminDashBoardController {
     private final BookingService bookingService;
     private final OTAChannelService otaChannelService;
     private final PaymentService paymentService;
+    private final UserService userService;
 
     // ================= STATISTIC RATE ROOM TYPE =================
     @GetMapping("/room-type-statistic")
@@ -56,14 +57,20 @@ public class AdminDashBoardController {
     }
 
     // ================= PAYMENT DASHBOARD =================
-    @GetMapping("/payment-dashboard")
+    @GetMapping("/payment-statistic")
     public PaymentDashboardResponse getPaymentDashboard() {
         return paymentService.getPaymentDashboard();
     }
 
     // ================= REVENUE DASHBOARD =================
-    @GetMapping("/revenue-dashboard")
+    @GetMapping("/revenue-statistic")
     public RevenueStatisticsResponse getRevenueStatistics() {
         return paymentService.getRevenueStatistics();
+    }
+
+    // ================ STAFF STATISTIC DASHBOARD ==========
+    @GetMapping("/staff-statistic")
+    public StaffDashboardResponse getStaffDashboard() {
+        return userService.getStaffDashboard();
     }
 }

@@ -212,7 +212,7 @@ public class PaymentService {
     }
 
 
-    private void validateBookingPayment(
+    public void validateBookingPayment(
             Booking booking
     ) {
         // ===== BOOKING STATUS =====
