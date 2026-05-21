@@ -49,13 +49,13 @@ GO
 
 INSERT INTO RoomTypeImages (room_type_id, image_url, is_primary, caption) VALUES
 -- Ảnh cho phòng STANDARD
-(1, 'https://myhotel.com/images/rooms/std-main.jpg', 1, N'Không gian tổng thể phòng Standard'),
+(1, 'https://res.cloudinary.com/do8uakd0l/image/upload/v1779341218/Screenshot_2026-05-21_122631_j586vn.png', 1, N'Không gian tổng thể phòng Standard'),
 -- Ảnh cho phòng DELUXE
-(2, 'https://myhotel.com/images/rooms/deluxe-main.jpg', 1, N'Phòng Deluxe hướng phố ban ngày'),
-(2, 'https://myhotel.com/images/rooms/deluxe-bathroom.jpg', 0, N'Phòng tắm kính hiện đại phòng Deluxe'),
+(2, 'https://res.cloudinary.com/do8uakd0l/image/upload/v1779341303/Screenshot_2026-05-21_122803_yttutl.png', 1, N'Phòng Deluxe hướng phố ban ngày'),
+(2, 'https://res.cloudinary.com/do8uakd0l/image/upload/v1779341346/Screenshot_2026-05-21_122850_mklaae.png', 0, N'Phòng tắm kính hiện đại phòng Deluxe'),
 -- Ảnh cho phòng VIP
-(3, 'https://myhotel.com/images/rooms/vip-livingroom.jpg', 1, N'Phòng khách sang trọng phòng VIP'),
-(3, 'https://myhotel.com/images/rooms/vip-bed.jpg', 0, N'Chi tiết giường ngủ King Size phòng VIP');
+(3, 'https://res.cloudinary.com/do8uakd0l/image/upload/v1779341388/Screenshot_2026-05-21_122932_egqu3o.png', 1, N'Phòng khách sang trọng phòng VIP'),
+(3, 'https://res.cloudinary.com/do8uakd0l/image/upload/v1779341431/Screenshot_2026-05-21_123015_gba4ar.png', 0, N'Chi tiết giường ngủ King Size phòng VIP');
 GO
 
 -- Chèn vật dụng vào danh mục tổng
