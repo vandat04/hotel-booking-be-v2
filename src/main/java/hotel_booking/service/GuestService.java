@@ -27,6 +27,7 @@ public class GuestService {
     private final RoomTypeImageRepository imageRepository;
     private final ReviewRepository reviewRepository;
     private final RoomTypeItemRepository roomTypeItemRepository;
+    private final hotel_booking.mapper.RoomTypeMapper roomTypeMapper;
 
     // ================= SEARCH ROOM TYPES =================
     public PageResponse<GuestSearchRoomResponse> search(GuestSearchRoomRequest request) {
@@ -88,7 +89,7 @@ public class GuestService {
                 }
             }
 
-            return GuestSearchRoomResponse.builder().roomTypeId(roomType.getId()).roomTypeName(roomType.getName()).description(roomType.getDescription()).pricePerDay(roomType.getPricePerDay()).pricePerHour(roomType.getPricePerHour()).maxAdults(roomType.getMaxAdults()).maxChildren(roomType.getMaxChildren()).bedCount(roomType.getBedCount()).bedType(roomType.getBedType()).roomSizeM2(roomType.getRoomSizeM2()).thumbnail(thumbnail).build();
+            return roomTypeMapper.toSearchResponse(roomType, thumbnail);
         }).filter(java.util.Objects::nonNull).toList();
 
         // ===== RESPONSE =====
@@ -129,8 +130,6 @@ public class GuestService {
         int totalReviews = reviewList.size();
 
         // ===== RESPONSE =====
-        return RoomTypeDetailResponse.builder().roomTypeId(roomType.getId()).roomTypeName(roomType.getName()).description(roomType.getDescription()).pricePerDay(roomType.getPricePerDay()).pricePerHour(roomType.getPricePerHour()).maxAdults(roomType.getMaxAdults()).maxChildren(roomType.getMaxChildren()).bedCount(roomType.getBedCount()).bedType(roomType.getBedType()).roomSizeM2(roomType.getRoomSizeM2()).images(images).items(items)
-                // ===== REVIEW =====
-                .averageRating(avgRating).totalReviews(totalReviews).reviews(reviews).build();
+        return roomTypeMapper.toDetailResponse(roomType, images, items, reviews, avgRating, totalReviews);
     }
 }

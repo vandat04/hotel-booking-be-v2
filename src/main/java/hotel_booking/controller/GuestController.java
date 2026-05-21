@@ -1,7 +1,6 @@
 package hotel_booking.controller;
 
 import hotel_booking.dto.request.CheckAvailabilityRequest;
-import hotel_booking.dto.request.CreateBookingRequest;
 import hotel_booking.dto.request.GuestSearchRoomRequest;
 import hotel_booking.dto.request.PaginationRequest;
 import hotel_booking.dto.response.*;
@@ -9,8 +8,6 @@ import hotel_booking.service.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -22,74 +19,55 @@ public class GuestController {
     private final HotelService hotelService;
     private final RoomTypeService roomTypeService;
     private final BookingService bookingService;
-    private final UserService userService;
 
-    // ================= GET USER ID =================
-    public Integer getUserId(){
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        return Integer.parseInt(authentication.getName());
+    // ================= VIEW HOTEL INFO =================
+    // GET /api/hotel
+    @GetMapping
+    public ResponseEntity<ApiResponse<HotelResponse>> getHotelById() {
+        return ResponseEntity.ok(ApiResponse.success(hotelService.getHotelById()));
     }
 
-    // ================= VIEW HOTEL =================
-    @GetMapping()
-    public HotelResponse getHotelById() {
-        return hotelService.getHotelById();
-    }
-
-    // ================= VIEW ROOM TYPE LIST =================
+    // ================= VIEW ROOM TYPE LIST (active only, paginated) =================
+    // GET /api/hotel/room-types?page=0&size=10
     @GetMapping("/room-types")
-    public Page<RoomTypeListResponse> getAllActiveRoomTypes(PaginationRequest request) {
-        return roomTypeService.getActiveRoomTypes(request);
+    public ResponseEntity<ApiResponse<PageResponse<RoomTypeListResponse>>> getAllActiveRoomTypes(PaginationRequest request) {
+        Page<RoomTypeListResponse> page = roomTypeService.getActiveRoomTypes(request);
+        PageResponse<RoomTypeListResponse> pageResponse = PageResponse.<RoomTypeListResponse>builder()
+                .content(page.getContent())
+                .page(page.getNumber())
+                .size(page.getSize())
+                .totalElements(page.getTotalElements())
+                .totalPages(page.getTotalPages())
+                .last(page.isLast())
+                .build();
+        return ResponseEntity.ok(ApiResponse.success(pageResponse));
     }
 
-    // ================= SEARCH ROOM TYPE =================
-    @GetMapping("/search-room-types")
-    public PageResponse<GuestSearchRoomResponse> search(
+    // ================= SEARCH ROOM TYPES (with filters) =================
+    // GET /api/hotel/room-types/search?bookingType=DAILY&checkIn=2026-06-01&checkOut=2026-06-05
+    //                             &adults=2&children=1&minPrice=100&maxPrice=500&page=0&size=10
+    @GetMapping("/room-types/search")
+    public ResponseEntity<ApiResponse<PageResponse<GuestSearchRoomResponse>>> search(
             @ModelAttribute GuestSearchRoomRequest request
     ) {
-        return searchRoomService.search(request);
+        return ResponseEntity.ok(ApiResponse.success(searchRoomService.search(request)));
     }
 
     // ================= VIEW ROOM TYPE DETAIL =================
-    @GetMapping("/room-type")
-    public RoomTypeDetailResponse getDetail(
-            @RequestParam Integer id
+    // GET /api/hotel/room-types/{id}
+    @GetMapping("/room-types/{id}")
+    public ResponseEntity<ApiResponse<RoomTypeDetailResponse>> getDetail(
+            @PathVariable Integer id
     ) {
-        return searchRoomService.getDetail(id);
+        return ResponseEntity.ok(ApiResponse.success(searchRoomService.getDetail(id)));
     }
 
-    // ================= CHECK ROOM AVAILABLE =================
-    @GetMapping("/room-type/check-availability")
-    public CheckAvailabilityResponse checkAvailability(
+    // ================= CHECK ROOM AVAILABILITY =================
+    // GET /api/hotel/room-types/availability?roomTypeId=1&checkIn=2026-06-01&checkOut=2026-06-05
+    @GetMapping("/room-types/availability")
+    public ResponseEntity<ApiResponse<CheckAvailabilityResponse>> checkAvailability(
             @ModelAttribute CheckAvailabilityRequest request
     ) {
-        return bookingService.checkAvailability(request);
-    }
-
-    // ============  CREATE BOOKING (BOOK NOW)  =============
-    @PostMapping("/room-type/book-now")
-    public ResponseEntity<?> createBooking(
-            @RequestBody CreateBookingRequest request,
-            @RequestHeader(value = "Authorization", required = false) String token
-    ) {
-        UserProfileResponse user = userService.getMyProfile(getUserId());
-
-        if (user.getId() != null) {
-            request.setCustomerId(user.getId());
-        } else {
-            throw new RuntimeException("Please Login!");
-        }
-        if (user.getFullName() != null && user.getPhone() != null && user.getEmail() != null) {
-            request.setCustomerName(user.getFullName());
-            request.setCustomerPhone(user.getPhone());
-            request.setCustomerEmail(user.getEmail());
-        } else {
-            throw new RuntimeException("Please Update Your Profile!");
-        }
-
-        // =========== CALL SERVICE (RE-CHECK INSIDE SERVICE)  ==============
-        BookingResponse response = bookingService.createBooking(request);
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(bookingService.checkAvailability(request)));
     }
 }

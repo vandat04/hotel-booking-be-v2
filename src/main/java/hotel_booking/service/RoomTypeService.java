@@ -31,6 +31,7 @@ public class RoomTypeService {
     private final BaseItemRepository baseItemRepository;
     private final RoomDamageRepository roomDamageRepository;
     private final RoomTypeItemRepository roomTypeItemRepository;
+    private final hotel_booking.mapper.RoomTypeMapper roomTypeMapper;
 
     public Page<RoomTypeListResponse> getActiveRoomTypes(PaginationRequest request) {
         Pageable pageable = PaginationUtil.build(request);
@@ -51,19 +52,7 @@ public class RoomTypeService {
             }
 
             // ===== MAP RESPONSE =====
-            return RoomTypeListResponse.builder()
-                    .id(roomType.getId())
-                    .name(roomType.getName())
-                    .description(roomType.getDescription())
-                    .pricePerDay(roomType.getPricePerDay())
-                    .pricePerHour(roomType.getPricePerHour())
-                    .maxAdults(roomType.getMaxAdults())
-                    .maxChildren(roomType.getMaxChildren())
-                    .bedCount(roomType.getBedCount())
-                    .bedType(roomType.getBedType())
-                    .roomSizeM2(roomType.getRoomSizeM2())
-                    .thumbnail(thumbnail)
-                    .build();
+            return roomTypeMapper.toTypeListResponse(roomType, thumbnail);
         });
     }
 
@@ -89,23 +78,8 @@ public class RoomTypeService {
         }
 
         // ===== CREATE =====
-        RoomType roomType = RoomType.builder()
-                .hotel(hotel)
-                .name(request.getName())
-                .description(request.getDescription())
-                .status(request.getStatus())
-                .pricePerDay(request.getPricePerDay())
-                .pricePerHour(request.getPricePerHour())
-                .targetDailyPercentage(request.getTargetDailyPercentage())
-                .targetHourlyPercentage(request.getTargetHourlyPercentage())
-                .maxAdults(request.getMaxAdults())
-                .maxChildren(request.getMaxChildren())
-                .bedCount(request.getBedCount())
-                .bedType(request.getBedType())
-                .roomSizeM2(request.getRoomSizeM2())
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
+        RoomType roomType = roomTypeMapper.toEntity(request);
+        roomType.setHotel(hotel);
 
         return roomTypeRepository.save(roomType);
     }
@@ -149,20 +123,8 @@ public class RoomTypeService {
         }
 
         // ===== UPDATE =====
+        roomTypeMapper.updateEntity(request, roomType);
         roomType.setHotel(hotel);
-        roomType.setName(request.getName());
-        roomType.setDescription(request.getDescription());
-        roomType.setStatus(request.getStatus());
-        roomType.setPricePerDay(request.getPricePerDay());
-        roomType.setPricePerHour(request.getPricePerHour());
-        roomType.setTargetDailyPercentage(request.getTargetDailyPercentage());
-        roomType.setTargetHourlyPercentage(request.getTargetHourlyPercentage());
-        roomType.setMaxAdults(request.getMaxAdults());
-        roomType.setMaxChildren(request.getMaxChildren());
-        roomType.setBedCount(request.getBedCount());
-        roomType.setBedType(request.getBedType());
-        roomType.setRoomSizeM2(request.getRoomSizeM2());
-        roomType.setUpdatedAt(LocalDateTime.now());
 
         // ===== SAVE =====
         return roomTypeRepository.save(roomType);
@@ -206,7 +168,7 @@ public class RoomTypeService {
         List<RoomTypeResponse> content =
                 pageData.getContent()
                         .stream()
-                        .map(this::mapToResponse)
+                        .map(roomTypeMapper::toResponse)
                         .toList();
 
         return PageResponse.<RoomTypeResponse>builder()
@@ -216,26 +178,6 @@ public class RoomTypeService {
                 .totalElements(pageData.getTotalElements())
                 .totalPages(pageData.getTotalPages())
                 .last(pageData.isLast())
-                .build();
-    }
-
-    private RoomTypeResponse mapToResponse(RoomType roomType) {
-        return RoomTypeResponse.builder().id(roomType.getId())
-                .hotelId(roomType.getHotel() != null ? roomType.getHotel().getId() : null)
-                .name(roomType.getName())
-                .description(roomType.getDescription())
-                .status(roomType.getStatus())
-                .pricePerDay(roomType.getPricePerDay())
-                .pricePerHour(roomType.getPricePerHour())
-                .targetDailyPercentage(roomType.getTargetDailyPercentage())
-                .targetHourlyPercentage(roomType.getTargetHourlyPercentage())
-                .maxAdults(roomType.getMaxAdults())
-                .maxChildren(roomType.getMaxChildren())
-                .bedCount(roomType.getBedCount())
-                .bedType(roomType.getBedType())
-                .roomSizeM2(roomType.getRoomSizeM2())
-                .createdAt(roomType.getCreatedAt())
-                .updatedAt(roomType.getUpdatedAt())
                 .build();
     }
 
@@ -257,25 +199,7 @@ public class RoomTypeService {
                 .toList();
 
         // ===== BUILD RESPONSE =====
-        return RoomTypeResponse.builder()
-                .id(roomType.getId())
-                .hotelId(roomType.getHotel() != null ? roomType.getHotel().getId() : null)
-                .name(roomType.getName())
-                .description(roomType.getDescription())
-                .status(roomType.getStatus())
-                .pricePerDay(roomType.getPricePerDay())
-                .pricePerHour(roomType.getPricePerHour())
-                .targetDailyPercentage(roomType.getTargetDailyPercentage())
-                .targetHourlyPercentage(roomType.getTargetHourlyPercentage())
-                .maxAdults(roomType.getMaxAdults())
-                .maxChildren(roomType.getMaxChildren())
-                .bedCount(roomType.getBedCount())
-                .bedType(roomType.getBedType())
-                .roomSizeM2(roomType.getRoomSizeM2())
-                .createdAt(roomType.getCreatedAt())
-                .updatedAt(roomType.getUpdatedAt())
-
-                .build();
+        return roomTypeMapper.toResponse(roomType);
     }
 
     // ==================================
@@ -405,10 +329,10 @@ public class RoomTypeService {
     // ========= ADD BASE ITEM  =========
     // ==================================
     @Transactional
-    public List<BaseItem> createBaseItemList(List<BaseItemCreateRequest> request) {
+    public List<BaseItemResponse> createBaseItemList(List<BaseItemCreateRequest> request) {
 
         if (request == null || request.isEmpty()) {
-            throw new RuntimeException("ITEM_LIST_EMPTY");
+            throw new IllegalArgumentException("Item list cannot be empty");
         }
 
         // ===== CHECK DUPLICATE IN DB =====
@@ -420,7 +344,7 @@ public class RoomTypeService {
         List<BaseItem> existing = baseItemRepository.findByItemNameIn(names);
 
         if (!existing.isEmpty()) {
-            throw new RuntimeException("ITEM_NAME_ALREADY_EXISTS");
+            throw new hotel_booking.exception.DuplicateDataException("One or more item names already exist");
         }
 
         // ===== MAP TO ENTITY =====
@@ -434,8 +358,17 @@ public class RoomTypeService {
                 )
                 .toList();
 
-        // ===== SAVE ALL =====
-        return baseItemRepository.saveAll(entities);
+        // ===== SAVE ALL AND MAP TO DTO =====
+        return baseItemRepository.saveAll(entities).stream()
+                .map(item -> BaseItemResponse.builder()
+                        .id(item.getId())
+                        .itemName(item.getItemName())
+                        .baseUnitPrice(item.getBaseUnitPrice())
+                        .description(item.getDescription())
+                        .itemImageUrl(item.getItemImageUrl())
+                        .build()
+                )
+                .toList();
     }
 
     // ==================================

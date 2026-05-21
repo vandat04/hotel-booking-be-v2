@@ -3,10 +3,12 @@ package hotel_booking.controller;
 import hotel_booking.dto.request.PaginationRequest;
 import hotel_booking.dto.request.ReplyReviewRequest;
 import hotel_booking.dto.request.SearchReviewRequest;
+import hotel_booking.dto.response.ApiResponse;
 import hotel_booking.dto.response.PageResponse;
 import hotel_booking.dto.response.ReviewResponse;
 import hotel_booking.service.ReviewService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -16,45 +18,49 @@ public class AdminReviewController {
 
     private final ReviewService reviewService;
 
-    // ================= GET ALL REVIEW =================
+    // ================= GET ALL REVIEWS (paginated, filterable) =================
+    // GET /api/admin/reviews?replyStatus=REPLIED&page=0&size=10
     @GetMapping
-    public PageResponse<ReviewResponse> getAllReviews(
+    public ResponseEntity<ApiResponse<PageResponse<ReviewResponse>>> getAllReviews(
             PaginationRequest request,
-            @RequestParam("replyStatus") String replyStatus
+            @RequestParam(required = false) String replyStatus
     ) {
-        return reviewService.getAllReviews(request, replyStatus);
+        return ResponseEntity.ok(ApiResponse.success(reviewService.getAllReviews(request, replyStatus)));
     }
 
     // ================= GET REVIEW DETAIL =================
-    @GetMapping("/detail/{reviewId}")
-    public ReviewResponse getReviewDetail(@PathVariable Integer reviewId) {
-        return reviewService.getReviewDetail(reviewId);
+    // GET /api/admin/reviews/{reviewId}
+    @GetMapping("/{reviewId}")
+    public ResponseEntity<ApiResponse<ReviewResponse>> getReviewDetail(@PathVariable Integer reviewId) {
+        return ResponseEntity.ok(ApiResponse.success(reviewService.getReviewDetail(reviewId)));
     }
 
-    // ================= REPLY REVIEW =================
+    // ================= REPLY TO REVIEW =================
+    // PUT /api/admin/reviews/{reviewId}/reply
     @PutMapping("/{reviewId}/reply")
-    public String replyReview(
+    public ResponseEntity<ApiResponse<String>> replyReview(
             @PathVariable Integer reviewId,
             @RequestBody ReplyReviewRequest request
     ) {
         reviewService.replyReview(reviewId, request);
-        return "Reply review success";
+        return ResponseEntity.ok(ApiResponse.success("Review reply submitted successfully"));
     }
 
     // ================= DELETE REVIEW =================
+    // DELETE /api/admin/reviews/{reviewId}
     @DeleteMapping("/{reviewId}")
-    public String deleteReview(@PathVariable Integer reviewId) {
+    public ResponseEntity<ApiResponse<String>> deleteReview(@PathVariable Integer reviewId) {
         reviewService.deleteReview(reviewId);
-        return "Delete review success";
+        return ResponseEntity.ok(ApiResponse.success("Review deleted successfully"));
     }
 
-    // ================= SEARCH REVIEW =================
+    // ================= SEARCH REVIEWS =================
+    // GET /api/admin/reviews/search?keyword=&rating=&page=0&size=10
     @GetMapping("/search")
-    public PageResponse<ReviewResponse> searchReviews(
+    public ResponseEntity<ApiResponse<PageResponse<ReviewResponse>>> searchReviews(
             @ModelAttribute SearchReviewRequest request,
             @ModelAttribute PaginationRequest pagination
     ) {
-        return reviewService.searchReviews(request, pagination);
+        return ResponseEntity.ok(ApiResponse.success(reviewService.searchReviews(request, pagination)));
     }
-
 }

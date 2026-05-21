@@ -6,9 +6,11 @@ import hotel_booking.dto.request.PaginationRequest;
 import hotel_booking.dto.request.SearchBookingRequest;
 import hotel_booking.dto.response.AdminBookingDetailResponse;
 import hotel_booking.dto.response.AdminBookingResponse;
+import hotel_booking.dto.response.ApiResponse;
 import hotel_booking.dto.response.PageResponse;
 import hotel_booking.service.BookingService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -20,45 +22,45 @@ public class AdminBookingController {
 
     // ================= VIEW ALL BOOKINGS =================
     @GetMapping
-    public PageResponse<AdminBookingResponse> getAllBookings(
+    public ResponseEntity<ApiResponse<PageResponse<AdminBookingResponse>>> getAllBookings(
             PaginationRequest request
     ) {
-        return bookingService.getAllBookings(request);
+        return ResponseEntity.ok(ApiResponse.success(bookingService.getAllBookings(request)));
     }
 
     // ================= SEARCH BOOKINGS =================
     @GetMapping("/search")
-    public PageResponse<AdminBookingResponse> searchBookings(
+    public ResponseEntity<ApiResponse<PageResponse<AdminBookingResponse>>> searchBookings(
             @ModelAttribute SearchBookingRequest request,
             @ModelAttribute PaginationRequest pagination
     ) {
-        return bookingService.searchBookings(request, pagination);
+        return ResponseEntity.ok(ApiResponse.success(bookingService.searchBookings(request, pagination)));
     }
 
     // ================= FILTER BOOKINGS =================
     @GetMapping("/filter")
-    public PageResponse<AdminBookingResponse> filterBookings(
+    public ResponseEntity<ApiResponse<PageResponse<AdminBookingResponse>>> filterBookings(
             @ModelAttribute FilterBookingRequest request,
             @ModelAttribute PaginationRequest pagination
     ) {
-        return bookingService.filterBookings(request, pagination);
+        return ResponseEntity.ok(ApiResponse.success(bookingService.filterBookings(request, pagination)));
     }
 
     // ================= BOOKING DETAIL =================
     @GetMapping("/{bookingId}")
-    public AdminBookingDetailResponse getAdminBookingDetail(
+    public ResponseEntity<ApiResponse<AdminBookingDetailResponse>> getAdminBookingDetail(
             @PathVariable Integer bookingId
     ) {
-        return bookingService.getAdminBookingDetail(bookingId);
+        return ResponseEntity.ok(ApiResponse.success(bookingService.getAdminBookingDetail(bookingId)));
     }
 
     // ================= CANCEL BOOKING =================
     @PutMapping("/{bookingId}/cancel")
-    public String cancelBooking(
+    public ResponseEntity<ApiResponse<String>> cancelBooking(
             @PathVariable Integer bookingId,
             @RequestBody CancelBookingRequest request
     ) {
         bookingService.cancelBooking(bookingId, request);
-        return "Cancel booking success";
+        return ResponseEntity.ok(ApiResponse.success("Cancel booking success"));
     }
 }

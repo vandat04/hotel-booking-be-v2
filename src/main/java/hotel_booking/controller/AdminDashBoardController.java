@@ -8,8 +8,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/admin/dashboard")
@@ -25,7 +23,7 @@ public class AdminDashBoardController {
 
     // ================= STATISTIC RATE ROOM TYPE =================
     @GetMapping("/room-type-statistic")
-    public ResponseEntity<List<RoomTypeBookingStatsResponse>> getBookingStats(
+    public ResponseEntity<ApiResponse<List<RoomTypeBookingStatsResponse>>> getBookingStats(
             @RequestParam Integer year,
             @RequestParam(required = false) Integer month
     ) {
@@ -33,44 +31,44 @@ public class AdminDashBoardController {
         request.setYear(year);
         request.setMonth(month);
 
-        return ResponseEntity.ok(
+        return ResponseEntity.ok(ApiResponse.success(
                 roomTypeService.getBookingStats(request)
-        );
+        ));
     }
 
     // ================= STATISTIC RATE REVIEW  =================
     @GetMapping("/review-rate-statistic")
-    public ReviewStatisticsResponse getReviewStatistics() {
-        return reviewService.getReviewStatistics();
+    public ResponseEntity<ApiResponse<ReviewStatisticsResponse>> getReviewStatistics() {
+        return ResponseEntity.ok(ApiResponse.success(reviewService.getReviewStatistics()));
     }
 
     // ================= BOOKING DASHBOARD =================
     @GetMapping("/booking-statistic")
-    public BookingStatisticsResponse getBookingStatistics() {
-        return bookingService.getBookingStatistics();
+    public ResponseEntity<ApiResponse<BookingStatisticsResponse>> getBookingStatistics() {
+        return ResponseEntity.ok(ApiResponse.success(bookingService.getBookingStatistics()));
     }
 
     // ================= OTA DASHBOARD =================
     @GetMapping("/ota-statistic")
-    public OTADashboardResponse getOTADashboard() {
-        return otaChannelService.getDashboard();
+    public ResponseEntity<ApiResponse<OTADashboardResponse>> getOTADashboard() {
+        return ResponseEntity.ok(ApiResponse.success(otaChannelService.getDashboard()));
     }
 
     // ================= PAYMENT DASHBOARD =================
     @GetMapping("/payment-statistic")
-    public PaymentDashboardResponse getPaymentDashboard() {
-        return paymentService.getPaymentDashboard();
+    public ResponseEntity<ApiResponse<PaymentDashboardResponse>> getPaymentDashboard() {
+        return ResponseEntity.ok(ApiResponse.success(paymentService.getPaymentDashboard()));
     }
 
     // ================= REVENUE DASHBOARD =================
     @GetMapping("/revenue-statistic")
-    public RevenueStatisticsResponse getRevenueStatistics() {
-        return paymentService.getRevenueStatistics();
+    public ResponseEntity<ApiResponse<RevenueStatisticsResponse>> getRevenueStatistics() {
+        return ResponseEntity.ok(ApiResponse.success(paymentService.getRevenueStatistics()));
     }
 
     // ================ STAFF STATISTIC DASHBOARD ==========
     @GetMapping("/staff-statistic")
-    public StaffDashboardResponse getStaffDashboard() {
-        return userService.getStaffDashboard();
+    public ResponseEntity<ApiResponse<StaffDashboardResponse>> getStaffDashboard() {
+        return ResponseEntity.ok(ApiResponse.success(userService.getStaffDashboard()));
     }
 }

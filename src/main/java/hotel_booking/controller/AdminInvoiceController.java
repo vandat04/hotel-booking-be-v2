@@ -1,7 +1,7 @@
 package hotel_booking.controller;
 
-
 import hotel_booking.dto.request.GenerateInvoiceRequest;
+import hotel_booking.dto.response.ApiResponse;
 import hotel_booking.dto.response.InvoiceResponse;
 import hotel_booking.service.InvoiceService;
 import lombok.RequiredArgsConstructor;
@@ -19,19 +19,18 @@ public class AdminInvoiceController {
 
     // GENERATE INVOICE========================================================
     @PostMapping
-    public InvoiceResponse generateInvoice(
+    public ResponseEntity<ApiResponse<InvoiceResponse>> generateInvoice(
             @RequestBody GenerateInvoiceRequest request
     ) {
-        return invoiceService.generateInvoice(request);
+        return ResponseEntity.ok(ApiResponse.success(invoiceService.generateInvoice(request)));
     }
 
     // VIEW DETAIL=========================================================
     @GetMapping("/{invoiceId}")
-    public InvoiceResponse viewInvoiceDetail(
+    public ResponseEntity<ApiResponse<InvoiceResponse>> viewInvoiceDetail(
             @PathVariable Integer invoiceId
     ) {
-        System.out.println("heloo");
-        return invoiceService.viewInvoiceDetail(invoiceId);
+        return ResponseEntity.ok(ApiResponse.success(invoiceService.viewInvoiceDetail(invoiceId)));
     }
 
     // DOWNLOAD PDF=========================================================
@@ -39,9 +38,7 @@ public class AdminInvoiceController {
     public ResponseEntity<byte[]> downloadInvoice(
             @PathVariable Integer invoiceId
     ) {
-
-        byte[] pdf =
-                invoiceService.downloadInvoicePdf(invoiceId);
+        byte[] pdf = invoiceService.downloadInvoicePdf(invoiceId);
 
         return ResponseEntity.ok()
                 .header(
@@ -54,12 +51,10 @@ public class AdminInvoiceController {
 
     // SEND EMAIL=========================================================
     @PostMapping("/{invoiceId}/send-email")
-    public String sendInvoiceEmail(
+    public ResponseEntity<ApiResponse<String>> sendInvoiceEmail(
             @PathVariable Integer invoiceId
     ) {
-
         invoiceService.sendInvoiceEmail(invoiceId);
-
-        return "SEND_INVOICE_EMAIL_SUCCESS";
+        return ResponseEntity.ok(ApiResponse.success("SEND_INVOICE_EMAIL_SUCCESS"));
     }
 }

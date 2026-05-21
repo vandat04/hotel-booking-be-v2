@@ -4,11 +4,11 @@ import hotel_booking.dto.request.*;
 import hotel_booking.dto.response.*;
 import hotel_booking.service.BookingService;
 import hotel_booking.service.ReceptionBookingService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/receptionist/bookings")
@@ -19,110 +19,117 @@ public class ReceptionBookingController {
     private final BookingService bookingService;
 
     // 1. CHECK AVAILABILITY
+    // POST /api/receptionist/bookings/check
     @PostMapping("/check")
-    public ResponseEntity<CheckAvailabilityResponse> check(@RequestBody CheckAvailabilityRequest req) {
-        return ResponseEntity.ok(service.checkAvailability(req));
+    public ResponseEntity<ApiResponse<CheckAvailabilityResponse>> check(
+            @Valid @RequestBody CheckAvailabilityRequest req
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(service.checkAvailability(req)));
     }
 
     // 2. WALK-IN BOOKING
+    // POST /api/receptionist/bookings/walk-in → 201 CREATED
     @PostMapping("/walk-in")
-    public ResponseEntity<WalkInBookingResponse> createWalkIn(
-            @RequestBody WalkInBookingRequest req
+    public ResponseEntity<ApiResponse<WalkInBookingResponse>> createWalkIn(
+            @Valid @RequestBody WalkInBookingRequest req
     ) {
-        return ResponseEntity.ok(service.createWalkInBooking(req));
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Walk-in booking created successfully", service.createWalkInBooking(req)));
     }
 
-    // 3. GET ALL BOOKINGS (Newest first)
+    // 3. GET ALL BOOKINGS (Newest first, paginated)
+    // GET /api/receptionist/bookings?page=0&size=10
     @GetMapping
-    public ResponseEntity<PageResponse<AdminBookingResponse>> getAllBookings(
+    public ResponseEntity<ApiResponse<PageResponse<AdminBookingResponse>>> getAllBookings(
             PaginationRequest request
     ) {
-        return ResponseEntity.ok(service.getAllBookings(request));
+        return ResponseEntity.ok(ApiResponse.success(service.getAllBookings(request)));
     }
 
     // 4. GET BOOKING DETAIL
-    @GetMapping("/{bookingId}/detail")
-    public ResponseEntity<AdminBookingDetailResponse> getBookingDetail(
+    // GET /api/receptionist/bookings/{bookingId}
+    @GetMapping("/{bookingId}")
+    public ResponseEntity<ApiResponse<AdminBookingDetailResponse>> getBookingDetail(
             @PathVariable Integer bookingId
     ) {
-        return ResponseEntity.ok(service.getBookingDetail(bookingId));
+        return ResponseEntity.ok(ApiResponse.success(service.getBookingDetail(bookingId)));
     }
 
     // 5. SEARCH BOOKINGS
+    // GET /api/receptionist/bookings/search?keyword=&page=0&size=10
     @GetMapping("/search")
-    public ResponseEntity<PageResponse<AdminBookingResponse>> searchBookings(
+    public ResponseEntity<ApiResponse<PageResponse<AdminBookingResponse>>> searchBookings(
             @ModelAttribute SearchBookingRequest request,
             @ModelAttribute PaginationRequest pagination
     ) {
-        return ResponseEntity.ok(service.searchBookings(request, pagination));
+        return ResponseEntity.ok(ApiResponse.success(service.searchBookings(request, pagination)));
     }
 
     // 6. CANCEL BOOKING
+    // PUT /api/receptionist/bookings/{bookingId}/cancel
     @PutMapping("/{bookingId}/cancel")
-    public ResponseEntity<String> cancelBooking(
+    public ResponseEntity<ApiResponse<String>> cancelBooking(
             @PathVariable Integer bookingId,
-            @RequestBody CancelBookingRequest request
+            @Valid @RequestBody CancelBookingRequest request
     ) {
         service.cancelBooking(bookingId, request);
-        return ResponseEntity.ok("Cancel booking success");
+        return ResponseEntity.ok(ApiResponse.success("Booking cancelled successfully"));
     }
 
     // 7. REFUND BOOKING
+    // PUT /api/receptionist/bookings/{bookingId}/refund
     @PutMapping("/{bookingId}/refund")
-    public ResponseEntity<String> refundBooking(
+    public ResponseEntity<ApiResponse<String>> refundBooking(
             @PathVariable Integer bookingId
     ) {
         service.refundBooking(bookingId);
-        return ResponseEntity.ok("Refund booking success");
+        return ResponseEntity.ok(ApiResponse.success("Refund processed successfully"));
     }
 
-    // 8. PAYMENT
+    // 8. PAYMENT (cash/bank transfer at reception)
+    // POST /api/receptionist/bookings/pay
     @PostMapping("/pay")
-    public ResponseEntity<?> createReceptionPayment(
-            @RequestBody ReceptionistPaymentRequest request
+    public ResponseEntity<ApiResponse<String>> createReceptionPayment(
+            @Valid @RequestBody ReceptionistPaymentRequest request
     ) {
-        try {
-            String result = service.createPaymentBookingByReceptionist(request);
-            return ResponseEntity.ok(result);
-
-        } catch (RuntimeException ex) {
-            return ResponseEntity.badRequest().body(
-                    Map.of(
-                            "message", ex.getMessage()
-                    )
-            );
-        }
+        String result = service.createPaymentBookingByReceptionist(request);
+        return ResponseEntity.ok(ApiResponse.success("Payment recorded successfully", result));
     }
 
-    // 9. CHECK_IN BOOKING
+    // 9. CHECK-IN BOOKING
+    // POST /api/receptionist/bookings/{bookingId}/check-in
     @PostMapping("/{bookingId}/check-in")
-    public String checkInBooking(
+    public ResponseEntity<ApiResponse<String>> checkInBooking(
             @PathVariable Integer bookingId
     ) {
-        return service.checkInBooking(bookingId);
+        return ResponseEntity.ok(ApiResponse.success("Check-in successful", service.checkInBooking(bookingId)));
     }
 
-    // 10. CHECK_OUT BOOKING
+    // 10. CHECK-OUT BOOKING
+    // POST /api/receptionist/bookings/{bookingId}/check-out
     @PostMapping("/{bookingId}/check-out")
-    public String checkOutBooking(
+    public ResponseEntity<ApiResponse<String>> checkOutBooking(
             @PathVariable Integer bookingId
     ) {
-        return service.checkOutBooking(bookingId);
+        return ResponseEntity.ok(ApiResponse.success("Check-out successful", service.checkOutBooking(bookingId)));
     }
 
-    // 11.VIEW SẮP CHECK-IN BOOKING LIST
+    // 11. UPCOMING CHECK-INS (paginated)
+    // GET /api/receptionist/bookings/upcoming-checkin
     @GetMapping("/upcoming-checkin")
-    public PageResponse<BookingUpcomingResponse> getUpcomingCheckIns(
+    public ResponseEntity<ApiResponse<PageResponse<BookingUpcomingResponse>>> getUpcomingCheckIns(
             @ModelAttribute PaginationRequest request
     ) {
-        return bookingService.getUpcomingCheckIns(request);
+        return ResponseEntity.ok(ApiResponse.success(bookingService.getUpcomingCheckIns(request)));
     }
 
-    // 12.VIEW SẮP CHECK-OUT BOOKING LIST
+    // 12. UPCOMING CHECK-OUTS (paginated)
+    // GET /api/receptionist/bookings/upcoming-checkout
     @GetMapping("/upcoming-checkout")
-    public PageResponse<BookingUpcomingResponse> getUpcomingCheckOut(
+    public ResponseEntity<ApiResponse<PageResponse<BookingUpcomingResponse>>> getUpcomingCheckOut(
             @ModelAttribute PaginationRequest request
     ) {
-        return bookingService.getUpcomingCheckOuts(request);
+        return ResponseEntity.ok(ApiResponse.success(bookingService.getUpcomingCheckOuts(request)));
     }
 }

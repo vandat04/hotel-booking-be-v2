@@ -1,12 +1,14 @@
 package hotel_booking.controller;
 
 import hotel_booking.dto.request.*;
+import hotel_booking.dto.response.ApiResponse;
 import hotel_booking.dto.response.OTAChannelResponse;
 import hotel_booking.dto.response.PageResponse;
 import hotel_booking.service.OTAChannelService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -18,38 +20,39 @@ public class OTAChannelController {
 
     // ================= CREATE OTA =================
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public OTAChannelResponse create(
+    public ResponseEntity<ApiResponse<OTAChannelResponse>> create(
             @Valid @RequestBody CreateOTAChannelRequest request
     ) {
-        return otaChannelService.create(request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("OTA Channel created successfully", otaChannelService.create(request)));
     }
 
     // ================= VIEW OTA LIST =================
     @GetMapping
-    public PageResponse<OTAChannelResponse> getAll(
+    public ResponseEntity<ApiResponse<PageResponse<OTAChannelResponse>>> getAll(
             @ModelAttribute FilterOTAChannelRequest request,
             @ModelAttribute PaginationRequest pagination
     ) {
-        return otaChannelService.getAll(request, pagination);
+        return ResponseEntity.ok(ApiResponse.success(otaChannelService.getAll(request, pagination)));
     }
 
     // ================= VIEW OTA LIST =================
     @PutMapping("/{otaId}")
-    public OTAChannelResponse update(
+    public ResponseEntity<ApiResponse<OTAChannelResponse>> update(
             @PathVariable Integer otaId,
             @Valid @RequestBody UpdateOTAChannelRequest request
     ) {
-        return otaChannelService.update(otaId, request);
+        return ResponseEntity.ok(ApiResponse.success(otaChannelService.update(otaId, request)));
     }
 
     // ================= CREATE OTA BOOKING =================
     @PostMapping("/booking")
-    @ResponseStatus(HttpStatus.CREATED)
-    public String createBooking(
+    public ResponseEntity<ApiResponse<String>> createBooking(
             @RequestBody AgodaBookingWebhookRequest request
     ) {
         otaChannelService.createBookingFromOTA(request);
-        return "OTA_BOOKING_CREATED";
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("OTA booking created successfully", "OTA_BOOKING_CREATED"));
     }
 }
+

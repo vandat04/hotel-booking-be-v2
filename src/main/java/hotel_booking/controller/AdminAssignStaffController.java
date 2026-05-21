@@ -1,10 +1,12 @@
 package hotel_booking.controller;
 
 import hotel_booking.dto.request.AssignStaffRequest;
+import hotel_booking.dto.response.ApiResponse;
 import hotel_booking.dto.response.AssignStaffResponse;
 import hotel_booking.service.AssignStaffService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,23 +20,23 @@ public class AdminAssignStaffController {
 
     // CHI DINH LICH LAM VIEC =====================================================
     @PostMapping
-    public AssignStaffResponse assignStaff(
+    public ResponseEntity<ApiResponse<AssignStaffResponse>> assignStaff(
             @Valid @RequestBody AssignStaffRequest request
     ) {
-        return assignStaffService.assignStaff(request);
+        return ResponseEntity.ok(ApiResponse.success(assignStaffService.assignStaff(request)));
     }
 
     // VIEW LIST LICH LAM VIEC TRONG TUAN =====================================================
     @GetMapping("/current-week")
-    public List<AssignStaffResponse> getCurrentWeekAssignments() {
-        return assignStaffService.getCurrentWeekAssignments();
+    public ResponseEntity<ApiResponse<List<AssignStaffResponse>>> getCurrentWeekAssignments() {
+        return ResponseEntity.ok(ApiResponse.success(assignStaffService.getCurrentWeekAssignments()));
     }
 
     // DELETE LICH LAM VIEC  =====================================================
     @DeleteMapping("/{assignId}")
-    public String deleteAssignStaff(
+    public ResponseEntity<ApiResponse<String>> deleteAssignStaff(
             @PathVariable Integer assignId
     ) {
-        return assignStaffService.deleteAssignStaff(assignId);
+        return ResponseEntity.ok(ApiResponse.success(assignStaffService.deleteAssignStaff(assignId)));
     }
 }

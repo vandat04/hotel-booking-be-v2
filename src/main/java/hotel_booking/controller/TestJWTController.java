@@ -1,8 +1,9 @@
 package hotel_booking.controller;
 
+import hotel_booking.dto.response.ApiResponse;
 import hotel_booking.service.AuthService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,69 +16,54 @@ public class TestJWTController {
     // ================= ADMIN =================
 
     @GetMapping("/admin/test")
-    public String admin(Authentication authentication) {
-
-        return "Hello ADMIN : " + authentication.getName()
-                + " | Role = " + authentication.getAuthorities();
+    public ResponseEntity<ApiResponse<String>> admin(Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Hello ADMIN : " + authentication.getName()
+                + " | Role = " + authentication.getAuthorities()
+        ));
     }
 
     // ================= CUSTOMER =================
 
     @GetMapping("/customer/test")
-    public String customer(Authentication authentication) {
-
-        return "Hello CUSTOMER id : "
+    public ResponseEntity<ApiResponse<String>> customer(Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Hello CUSTOMER id : "
                 + authentication.getName()
-                + " | Role = " + authentication.getAuthorities();
+                + " | Role = " + authentication.getAuthorities()
+        ));
     }
 
     // ================= CLEANER =================
 
     @GetMapping("/cleaner/test")
-    public String cleaner(Authentication authentication) {
-
-        return "Hello CLEANER id : "
+    public ResponseEntity<ApiResponse<String>> cleaner(Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Hello CLEANER id : "
                 + authentication.getName()
-                + " | Role = " + authentication.getAuthorities();
+                + " | Role = " + authentication.getAuthorities()
+        ));
     }
 
     // ================= RECEPTIONIST =================
 
     @GetMapping("/receptionist/test")
-    public String receptionist(Authentication authentication) {
-
-        return "Hello RECEPTIONIST id : "
+    public ResponseEntity<ApiResponse<String>> receptionist(Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Hello RECEPTIONIST id : "
                 + authentication.getName()
-                + " | Role = " + authentication.getAuthorities();
+                + " | Role = " + authentication.getAuthorities()
+        ));
     }
 
     // ================= STAFF =================
 
     @GetMapping("/staff/test")
-    public String staff(Authentication authentication) {
-
-        return "Hello STAFF id : "
+    public ResponseEntity<ApiResponse<String>> staff(Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.success(
+                "Hello STAFF id : "
                 + authentication.getName()
-                + " | Role = " + authentication.getAuthorities();
+                + " | Role = " + authentication.getAuthorities()
+        ));
     }
-
-//    private final BookingService bookingService;
-//
-//    @PostMapping("/ota")
-//    public ResponseEntity<BookingResponse> createOtaBooking(@RequestBody OtaBookingRequest otaReq) {
-//        try {
-//            BookingResponse response = bookingService.createOtaBooking(otaReq);
-//            return ResponseEntity.ok(response);
-//        } catch (RuntimeException ex) {
-//            // Trả về lỗi với status 400 và message
-//            BookingResponse booking = new BookingResponse();
-//            booking.setBookingId(null);
-//            booking.setBookingId(null);
-//            booking.setBookingStatus(0);
-//            booking.setAvailableRooms(0);
-//            return ResponseEntity
-//                    .badRequest()
-//                    .body(booking); // BookingId=null, bookingStatus=0, availableRooms=0
-//        }
-//    }
 }

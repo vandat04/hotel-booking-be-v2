@@ -28,19 +28,7 @@ public class RoomService {
     private final RoomRepository roomRepository;
     private final CleaningTaskRepository cleaningTaskRepository;
     private final RoomScheduleRepository roomScheduleRepository;
-
-    public RoomResponse toResponse(Room room) {
-        return RoomResponse.builder()
-                .id(room.getId())
-                .roomNumber(room.getRoomNumber())
-                .floor(room.getFloor())
-                .allocatedFor(room.getAllocatedFor())
-                .status(room.getStatus())
-                .isActive(room.getIsActive())
-                .roomTypeId(room.getRoomType().getId())
-                .roomTypeName(room.getRoomType().getName())
-                .build();
-    }
+    private final hotel_booking.mapper.RoomMapper roomMapper;
 
     // ==================================
     // ========= CREATE ROOM  =========
@@ -61,18 +49,13 @@ public class RoomService {
         }
 
         // ===== CREATE ROOM =====
-        Room room = Room.builder()
-                .roomType(roomType)
-                .roomNumber(request.getRoomNumber())
-                .floor(request.getFloor())
-                .allocatedFor(allocatedFor)
-                .status("READY")
-                .isActive(true)
-                .build();
+        Room room = roomMapper.toEntity(request);
+        room.setRoomType(roomType);
+        room.setAllocatedFor(allocatedFor);
 
         roomRepository.save(room);
 
-        return toResponse(room);
+        return roomMapper.toResponse(room);
     }
 
     // ==================================
@@ -117,7 +100,7 @@ public class RoomService {
         room.setStatus(status);
         room.setIsActive(request.getIsActive());
         roomRepository.save(room);
-        return toResponse(room);
+        return roomMapper.toResponse(room);
     }
 
     // ==================================
@@ -169,7 +152,7 @@ public class RoomService {
         // ===== MAP RESPONSE =====
         List<RoomResponse> content = roomPage.getContent()
                 .stream()
-                .map(this::toResponse)
+                .map(roomMapper::toResponse)
                 .toList();
 
         return PageResponse.<RoomResponse>builder()
@@ -191,6 +174,6 @@ public class RoomService {
                 .orElseThrow(() -> new RuntimeException("ROOM_NOT_FOUND"));
 
         // ===== MAP RESPONSE =====
-        return toResponse(room);
+        return roomMapper.toResponse(room);
     }
 }

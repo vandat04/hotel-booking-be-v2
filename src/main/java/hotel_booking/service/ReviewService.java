@@ -14,7 +14,7 @@ import hotel_booking.repository.ReviewRepository;
 import hotel_booking.util.PaginationUtil;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.apache.coyote.BadRequestException;
+import hotel_booking.exception.AppException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -38,7 +38,7 @@ public class ReviewService {
     );
 
     @Transactional
-    public void createReview(Integer customerId, CreateReviewRequest request) throws BadRequestException {
+    public void createReview(Integer customerId, CreateReviewRequest request) {
 
         Booking booking = bookingRepository.findById(request.getBookingId())
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
@@ -57,19 +57,19 @@ public class ReviewService {
         LocalDateTime checkOutTime = booking.getRequestedCheckout();
         long days = Duration.between(checkOutTime, LocalDateTime.now()).toDays();
         if (days > 3) {
-            throw new BadRequestException("Review period expired");
+            throw new AppException("Review period has expired (must review within 3 days of check-out)");
         }
 
         // ===== ONLY 1 REVIEW =====
         boolean reviewed = reviewRepository.existsByBooking_Id(booking.getId());
 
         if (reviewed) {
-            throw new BadRequestException("Booking already reviewed");
+            throw new AppException("This booking has already been reviewed");
         }
 
         // ===== VALIDATE RATING =====
         if (request.getRating() == null || request.getRating() < 1 || request.getRating() > 5) {
-            throw new BadRequestException("Rating must be between 1 and 5");
+            throw new AppException("Rating must be between 1 and 5");
         }
 
         // ===== COMMUNITY VALIDATION =====
@@ -91,7 +91,7 @@ public class ReviewService {
     }
 
     // ===== CHECK BAD WORD =====
-    private void validateComment(String comment) throws BadRequestException {
+    private void validateComment(String comment) {
         if (comment == null || comment.isBlank()) {
             return;
         }
@@ -99,7 +99,7 @@ public class ReviewService {
         for (String bannedWord : BANNED_WORDS) {
             if (lowerComment.contains(
                     bannedWord.toLowerCase())) {
-                throw new BadRequestException("Comment contains inappropriate content");
+                throw new AppException("Comment contains inappropriate content");
             }
         }
     }

@@ -1,12 +1,13 @@
 package hotel_booking.controller;
 
 import hotel_booking.dto.request.*;
-import hotel_booking.entity.User;
-import hotel_booking.repository.UserRepository;
+import hotel_booking.dto.response.ApiResponse;
+import hotel_booking.dto.response.LoginResponse;
 import hotel_booking.service.AuthService;
 import hotel_booking.service.GoogleService;
-import hotel_booking.service.JwtService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,31 +15,35 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/auth")
 @RequiredArgsConstructor
 public class AuthController {
+
     private final AuthService authService;
     private final GoogleService googleService;
-    private final UserRepository userRepository;
-    private final JwtService jwtService;
 
+    // ================= REGISTER =================
+    // POST /api/auth/register → 201 CREATED
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
-        return ResponseEntity.ok(authService.register(request));
+    public ResponseEntity<ApiResponse<String>> register(@Valid @RequestBody RegisterRequest request) {
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Registration successful", authService.register(request)));
     }
 
+    // ================= LOGIN =================
+    // POST /api/auth/login
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-        String token = authService.login(request.getUsername(), request.getPassword());
-        return ResponseEntity.ok(java.util.Map.of("token", token));
+    public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
+        LoginResponse loginResponse = authService.loginAndBuildResponse(request.getUsername(), request.getPassword());
+        return ResponseEntity.ok(ApiResponse.success("Login successful", loginResponse));
     }
 
+    // ================= GOOGLE LOGIN =================
+    // POST /api/auth/google
     @PostMapping("/google")
-    public ResponseEntity<?> loginWithGoogle(@RequestBody GoogleLoginRequest request) {
-
-        String idToken = request.getIdToken();
-
-        var payload = googleService.verifyToken(idToken);
+    public ResponseEntity<ApiResponse<LoginResponse>> loginWithGoogle(@RequestBody GoogleLoginRequest request) {
+        var payload = googleService.verifyToken(request.getIdToken());
 
         if (payload == null) {
-            throw new RuntimeException("Invalid Google token");
+            throw new hotel_booking.exception.AppException("Invalid Google token");
         }
 
         String email = payload.getEmail();
@@ -46,45 +51,34 @@ public class AuthController {
         String picture = (String) payload.get("picture");
         String sub = payload.getSubject();
 
-        User user = userRepository.findByUsername(email)
-                .orElseGet(() -> {
-                    User newUser = new User();
-                    newUser.setUsername(email);
-                    newUser.setEmail(email);
-                    newUser.setFullName(name);
-                    newUser.setAvatarUrl(picture);
-                    newUser.setProvider("GOOGLE");
-                    newUser.setProviderId(sub);
-                    newUser.setEmailVerified(true);
-                    newUser.setRole("CUSTOMER");
-
-                    return userRepository.save(newUser);
-                });
-
-        String token = jwtService.generateToken(user.getId(), user.getRole());
-        return ResponseEntity.ok(java.util.Map.of("token", token));
+        LoginResponse loginResponse = authService.loginWithGoogle(email, name, picture, sub);
+        return ResponseEntity.ok(ApiResponse.success("Login with Google successful", loginResponse));
     }
 
+    // ================= FORGOT PASSWORD =================
+    // POST /api/auth/forgot-password
     @PostMapping("/forgot-password")
-    public ResponseEntity<?> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+    public ResponseEntity<ApiResponse<String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         authService.forgotPassword(request.getEmail());
-        return ResponseEntity.ok("OTP đã được gửi");
+        return ResponseEntity.ok(ApiResponse.success("OTP has been sent to your email"));
     }
 
+    // ================= RESET PASSWORD =================
+    // POST /api/auth/reset-password
     @PostMapping("/reset-password")
-    public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest request) {
+    public ResponseEntity<ApiResponse<String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request);
-        return ResponseEntity.ok("Đổi mật khẩu thành công");
+        return ResponseEntity.ok(ApiResponse.success("Password reset successfully"));
     }
 
+    // ================= LOGOUT =================
+    // POST /api/auth/logout
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(
+    public ResponseEntity<ApiResponse<String>> logout(
             @RequestHeader("Authorization") String authHeader
     ) {
         String token = authHeader.replace("Bearer ", "");
-
         authService.logout(token);
-
-        return ResponseEntity.ok("Đăng xuất thành công");
+        return ResponseEntity.ok(ApiResponse.success("Logged out successfully"));
     }
 }

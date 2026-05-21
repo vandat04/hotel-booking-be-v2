@@ -1,6 +1,8 @@
 package hotel_booking.config;
 
 import hotel_booking.filter.JwtAuthenticationFilter;
+import hotel_booking.security.JwtAuthenticationEntryPoint;
+import hotel_booking.security.JwtAccessDeniedHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,6 +28,12 @@ public class SecurityConfig {
     @Autowired
     private JwtAuthenticationFilter jwtFilter;
 
+    @Autowired
+    private JwtAuthenticationEntryPoint entryPoint;
+
+    @Autowired
+    private JwtAccessDeniedHandler accessDeniedHandler;
+
     // 🔐 Encode password
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -41,14 +49,17 @@ public class SecurityConfig {
                 "http://127.0.0.1:5500",
                 "http://localhost:5500",
                 "http://localhost:3000",
-                "http://localhost:5173"
+                "http://localhost:5173",
+                "http://localhost:4200",
+                "http://localhost:8081"
         ));
 
         config.setAllowedMethods(List.of(
-                "GET", "POST", "PUT", "DELETE", "OPTIONS"
+                "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"
         ));
 
         config.setAllowedHeaders(List.of("*"));
+        config.setExposedHeaders(List.of("Authorization", "Content-Type"));
         config.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -66,6 +77,12 @@ public class SecurityConfig {
 
                 // ❌ tắt CSRF (vì dùng JWT)
                 .csrf(csrf -> csrf.disable())
+
+                // 🛡️ cấu hình exception handling cho Security
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(entryPoint)
+                        .accessDeniedHandler(accessDeniedHandler)
+                )
 
                 .authorizeHttpRequests(auth -> auth
                         // PUBLIC API
@@ -90,4 +107,4 @@ public class SecurityConfig {
 
         return http.build();
     }
-}
+}

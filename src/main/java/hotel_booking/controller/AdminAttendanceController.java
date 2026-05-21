@@ -1,6 +1,9 @@
 package hotel_booking.controller;
 
 import hotel_booking.dto.request.AttendanceFilterRequest;
+import hotel_booking.dto.response.ApiResponse;
+import hotel_booking.dto.response.AttendanceResponse;
+import hotel_booking.dto.response.PageResponse;
 import hotel_booking.service.AttendanceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -15,11 +18,9 @@ public class AdminAttendanceController {
 
     // GET ATTENDANCE LIST =============================
     @GetMapping
-    public ResponseEntity<?> getAttendanceList(
+    public ResponseEntity<ApiResponse<PageResponse<AttendanceResponse>>> getAttendanceList(
             AttendanceFilterRequest request
     ) {
-        return ResponseEntity.ok(attendanceService.getAttendanceList(request));
+        return ResponseEntity.ok(ApiResponse.success(attendanceService.getAttendanceList(request)));
     }
-
-    // GET ATTENDANCE LIST =============================
 }

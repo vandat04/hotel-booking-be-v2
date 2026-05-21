@@ -1,5 +1,6 @@
 package hotel_booking.controller;
 
+import hotel_booking.dto.response.ApiResponse;
 import hotel_booking.dto.response.RoomTypeTodayResponse;
 import hotel_booking.service.RoomRealtimeService;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +19,8 @@ public class RoomRealtimeController {
     private final RoomRealtimeService service;
 
     @GetMapping("/today")
-    public ResponseEntity<List<RoomTypeTodayResponse>> getTodayRooms() {
-        return ResponseEntity.ok(service.getTodayRoomStatus());
+    public ResponseEntity<ApiResponse<List<RoomTypeTodayResponse>>> getTodayRooms() {
+        return ResponseEntity.ok(ApiResponse.success(service.getTodayRoomStatus()));
     }
 }
+

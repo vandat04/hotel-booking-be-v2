@@ -3,10 +3,14 @@ package hotel_booking.controller;
 import hotel_booking.dto.request.CreateRoomRequest;
 import hotel_booking.dto.request.PaginationRequest;
 import hotel_booking.dto.request.UpdateRoomRequest;
+import hotel_booking.dto.response.ApiResponse;
 import hotel_booking.dto.response.PageResponse;
 import hotel_booking.dto.response.RoomResponse;
 import hotel_booking.service.RoomService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -17,46 +21,52 @@ public class AdminRoomController {
     private final RoomService roomService;
 
     // ================= CREATE ROOM =================
+    // POST /api/admin/rooms → 201 CREATED
     @PostMapping
-    public RoomResponse createRoom(
-            @RequestBody CreateRoomRequest request
+    public ResponseEntity<ApiResponse<RoomResponse>> createRoom(
+            @Valid @RequestBody CreateRoomRequest request
     ) {
-        return roomService.createRoom(request);
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Room created successfully", roomService.createRoom(request)));
     }
 
     // ================= UPDATE ROOM =================
+    // PUT /api/admin/rooms/{roomId}
     @PutMapping("/{roomId}")
-    public RoomResponse updateRoom(
+    public ResponseEntity<ApiResponse<RoomResponse>> updateRoom(
             @PathVariable Integer roomId,
-            @RequestBody UpdateRoomRequest request
+            @Valid @RequestBody UpdateRoomRequest request
     ) {
-        return roomService.updateRoom(roomId, request);
+        return ResponseEntity.ok(ApiResponse.success("Room updated successfully", roomService.updateRoom(roomId, request)));
     }
 
     // ================= DELETE ROOM =================
+    // DELETE /api/admin/rooms/{roomId}
     @DeleteMapping("/{roomId}")
-    public String deleteRoom(
+    public ResponseEntity<ApiResponse<String>> deleteRoom(
             @PathVariable Integer roomId
     ) {
         roomService.deleteRoom(roomId);
-        return "Delete room success";
+        return ResponseEntity.ok(ApiResponse.success("Room deleted successfully"));
     }
 
-    // ================= VIEW ALL ROOMS =================
+    // ================= VIEW ALL ROOMS (paginated, filterable) =================
+    // GET /api/admin/rooms?roomTypeId=1&page=0&size=10
     @GetMapping
-    public PageResponse<RoomResponse> getAllRooms(
-            @RequestParam(required = false)
-            Integer roomTypeId,
+    public ResponseEntity<ApiResponse<PageResponse<RoomResponse>>> getAllRooms(
+            @RequestParam(required = false) Integer roomTypeId,
             PaginationRequest request
     ) {
-        return roomService.getAllRooms(roomTypeId, request);
+        return ResponseEntity.ok(ApiResponse.success(roomService.getAllRooms(roomTypeId, request)));
     }
 
     // ================= ROOM DETAIL =================
+    // GET /api/admin/rooms/{roomId}
     @GetMapping("/{roomId}")
-    public RoomResponse getRoomDetail(
+    public ResponseEntity<ApiResponse<RoomResponse>> getRoomDetail(
             @PathVariable Integer roomId
     ) {
-        return roomService.getRoomDetail(roomId);
+        return ResponseEntity.ok(ApiResponse.success(roomService.getRoomDetail(roomId)));
     }
 }

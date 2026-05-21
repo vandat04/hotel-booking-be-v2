@@ -2,9 +2,13 @@ package hotel_booking.service;
 
 import hotel_booking.dto.request.RegisterRequest;
 import hotel_booking.dto.request.ResetPasswordRequest;
+import hotel_booking.dto.response.LoginResponse;
+import hotel_booking.dto.response.UserProfileResponse;
 import hotel_booking.entity.InvalidToken;
 import hotel_booking.entity.ResetPasswordOTP;
 import hotel_booking.entity.User;
+import hotel_booking.exception.AppException;
+import hotel_booking.exception.DuplicateDataException;
 import hotel_booking.repository.InvalidTokenRepository;
 import hotel_booking.repository.ResetPasswordOTPRepository;
 import hotel_booking.repository.UserRepository;
@@ -181,12 +185,64 @@ public class AuthService {
         LocalDateTime expiry = jwtService.getExpiration(token).toInstant()
                 .atZone(ZoneId.systemDefault())
                 .toLocalDateTime();
-        ;
 
         InvalidToken invalidToken = new InvalidToken();
         invalidToken.setToken(token);
         invalidToken.setExpiryTime(expiry);
 
         invalidTokenRepository.save(invalidToken);
+    }
+
+    // ================= LOGIN → RETURN LoginResponse =================
+    public LoginResponse loginAndBuildResponse(String username, String password) {
+        String accessToken = login(username, password);
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new AppException("User not found"));
+        String refreshToken = jwtService.generateRefreshToken(user.getId(), user.getRole());
+        return buildLoginResponse(accessToken, refreshToken, user);
+    }
+
+    // ================= GOOGLE LOGIN → RETURN LoginResponse =================
+    public LoginResponse loginWithGoogle(String email, String name, String picture, String sub) {
+        User user = userRepository.findByUsername(email)
+                .orElseGet(() -> {
+                    User newUser = new User();
+                    newUser.setUsername(email);
+                    newUser.setEmail(email);
+                    newUser.setFullName(name);
+                    newUser.setAvatarUrl(picture);
+                    newUser.setProvider("GOOGLE");
+                    newUser.setProviderId(sub);
+                    newUser.setEmailVerified(true);
+                    newUser.setRole("CUSTOMER");
+                    return userRepository.save(newUser);
+                });
+
+        String accessToken = jwtService.generateToken(user.getId(), user.getRole());
+        String refreshToken = jwtService.generateRefreshToken(user.getId(), user.getRole());
+        return buildLoginResponse(accessToken, refreshToken, user);
+    }
+
+    // ================= BUILD LoginResponse HELPER =================
+    private LoginResponse buildLoginResponse(String accessToken, String refreshToken, User user) {
+        UserProfileResponse profile = UserProfileResponse.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .emailVerified(user.getEmailVerified())
+                .fullName(user.getFullName())
+                .phone(user.getPhone())
+                .avatarUrl(user.getAvatarUrl())
+                .gender(user.getGender())
+                .dateOfBirth(user.getDateOfBirth())
+                .role(user.getRole())
+                .status(user.getStatus())
+                .build();
+
+        return LoginResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .user(profile)
+                .build();
     }
 }

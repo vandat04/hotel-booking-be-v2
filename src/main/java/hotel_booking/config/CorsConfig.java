@@ -1,24 +1,13 @@
 package hotel_booking.config;
 
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.config.annotation.*;
-
-@Configuration
+/**
+ * CORS Configuration has been consolidated into SecurityConfig.java.
+ * The CorsConfigurationSource bean in SecurityConfig handles all CORS settings
+ * for Spring Security's filter chain, which takes precedence over WebMvcConfigurer.
+ *
+ * This class is intentionally left empty to avoid duplicate CORS configuration.
+ * Do NOT re-add a WebMvcConfigurer here as it will conflict with SecurityConfig CORS.
+ */
 public class CorsConfig {
-
-    @Bean
-    public WebMvcConfigurer corsConfigurer() {
-        return new WebMvcConfigurer() {
-            @Override
-            public void addCorsMappings(CorsRegistry registry) {
-
-                registry.addMapping("/**")
-                        .allowedOrigins("http://127.0.0.1:5500", "http://localhost:5500", "http://localhost:3000", "http://localhost:5173")
-                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                        .allowedHeaders("*")
-                        .allowCredentials(true);
-            }
-        };
-    }
+    // See SecurityConfig.corsConfigurationSource() for CORS configuration
 }

@@ -34,6 +34,7 @@ public class BookingService {
     private final PaymentRepository paymentRepository;
     private final InvoiceRepository invoiceRepository;
     private final EmailService emailService;
+    private final hotel_booking.mapper.BookingMapper bookingMapper;
 
     // ==================================
     // ========= CHECK AVAILABLE =========
@@ -162,24 +163,7 @@ public class BookingService {
         ).orElseThrow(() -> new RuntimeException("Room type not found"));
 
 
-        Booking booking = Booking.builder()
-                .customer(user)
-                .customerName(req.getCustomerName())
-                .customerPhone(req.getCustomerPhone())
-                .customerEmail(req.getCustomerEmail())
-
-                .roomType(roomType)
-                .requestedQuantity(req.getAvailabilityRequest().getNumberOfRoom())
-                .requestedCheckin(req.getAvailabilityRequest().getCheckIn())
-                .requestedCheckout(req.getAvailabilityRequest().getCheckOut())
-                .bookingType(req.getAvailabilityRequest().getBookingType())
-                .bookingSource(req.getBookingSource())
-                .status("PENDING")
-                .totalAmount(availability.getTotalAmount())
-                .paymentStatus("UNPAID")
-                .notes(req.getNotes())
-                .createdAt(LocalDateTime.now())
-                .build();
+        Booking booking = bookingMapper.toEntity(req, roomType, user, availability.getTotalAmount());
 
         booking = bookingRepository.save(booking);
 
@@ -206,11 +190,7 @@ public class BookingService {
         }
         notificationService.createCustomerNotification(user, booking, "BOOKING ROOM IN CHECK-X", "Room reservation successful, please process your booking within 1 minute.", "BOOKING_SUCCESS");
 
-        return BookingResponse.builder()
-                .bookingId(booking.getId())
-                .status("PENDING")
-                .message("Room reservation successful, please process your booking within 1 minute.")
-                .build();
+        return bookingMapper.toResponse(booking, "Room reservation successful, please process your booking within 1 minute.");
     }
 
     public Page<BookingHistoryResponse> getBookingHistory(
@@ -233,7 +213,7 @@ public class BookingService {
         Page<Booking> bookings = bookingRepository
                 .findByCustomerIdAndStatusIn(customerId, statuses, pageable);
 
-        return bookings.map(this::mapToHistoryResponse);
+        return bookings.map(bookingMapper::toHistoryResponse);
     }
 
     public Page<BookingHistoryResponse> getBookingHistory(
@@ -247,23 +227,10 @@ public class BookingService {
         Page<Booking> bookings = bookingRepository
                 .findByCustomerIdAndStatus(customerId, status, pageable);
 
-        return bookings.map(this::mapToHistoryResponse);
+        return bookings.map(bookingMapper::toHistoryResponse);
     }
 
-    private BookingHistoryResponse mapToHistoryResponse(Booking b) {
 
-        return BookingHistoryResponse.builder()
-                .bookingId(b.getId())
-                .roomTypeName(b.getRoomType().getName())
-                .quantity(b.getRequestedQuantity())
-                .checkIn(b.getRequestedCheckin())
-                .checkOut(b.getRequestedCheckout())
-                .bookingType(b.getBookingType())
-                .status(b.getStatus())
-                .totalAmount(b.getTotalAmount())
-                .createdAt(b.getCreatedAt())
-                .build();
-    }
 
     // ==================================
     // ======= GET BOOKING DETAILS ========
@@ -272,125 +239,7 @@ public class BookingService {
 
         Booking booking = bookingRepository.findByIdAndCustomerId(bookingId, userId).orElseThrow(() ->
                 new RuntimeException("Booking not found with id: " + bookingId));
-        return mapToBookingDetailResponse(booking);
-    }
-
-    public BookingDetailResponse mapToBookingDetailResponse(Booking booking) {
-        return BookingDetailResponse.builder()
-                .bookingId(booking.getId())
-                .bookingType(booking.getBookingType())
-                .bookingSource(booking.getBookingSource())
-                .bookingStatus(booking.getStatus())
-                .totalAmount(booking.getTotalAmount())
-                .paymentStatus(booking.getPaymentStatus())
-                .notes(booking.getNotes())
-                .createdAt(booking.getCreatedAt())
-
-                // CUSTOMER
-                .customerId(booking.getCustomer() != null ? booking.getCustomer().getId() : null)
-                .customerName(booking.getCustomerName())
-                .customerPhone(booking.getCustomerPhone())
-                .customerEmail(booking.getCustomerEmail())
-
-                // ROOM TYPE
-                .roomTypeId(booking.getRoomType() != null ? booking.getRoomType().getId() : null)
-                .roomTypeName(booking.getRoomType() != null ? booking.getRoomType().getName() : null)
-                .pricePerDay(booking.getRoomType() != null ? booking.getRoomType().getPricePerDay() : null)
-                .pricePerHour(booking.getRoomType() != null ? booking.getRoomType().getPricePerHour() : null)
-
-                // REQUEST
-                .requestedQuantity(booking.getRequestedQuantity())
-                .requestedCheckin(booking.getRequestedCheckin())
-                .requestedCheckout(booking.getRequestedCheckout())
-
-                // ROOM SCHEDULE
-                .roomSchedules(booking.getRoomSchedules().stream()
-                        .map(this::mapRoomSchedule)
-                        .toList()
-                )
-
-                // PAYMET
-                .payments(
-                        booking.getPayments()
-                                .stream()
-                                .map(this::mapPayment)
-                                .toList()
-                )
-
-                // INVOICE
-                .invoices(
-                        booking.getInvoices()
-                                .stream()
-                                .map(this::mapInvoice)
-                                .toList()
-                )
-
-                .build();
-    }
-
-    private RoomScheduleDetailResponse mapRoomSchedule(
-            RoomSchedule roomSchedule
-    ) {
-
-        RoomKey roomKey = roomKeyRepository.findByRoomSchedule_Id(roomSchedule.getId()).orElse(null);
-
-        return RoomScheduleDetailResponse.builder().roomScheduleId(roomSchedule.getId())
-                .roomId(roomSchedule.getRoom() != null ? roomSchedule.getRoom().getId() : null)
-                .roomNumber(roomSchedule.getRoom() != null ? roomSchedule.getRoom().getRoomNumber() : null)
-                .floor(roomSchedule.getRoom() != null ? roomSchedule.getRoom().getFloor() : null)
-                .roomStatus(roomSchedule.getRoom() != null ? roomSchedule.getRoom().getStatus() : null)
-
-                .startAt(roomSchedule.getStartAt())
-                .endAt(roomSchedule.getEndAt())
-                .scheduleStatus(roomSchedule.getStatus())
-
-                // ROOM KEY
-                .roomKeyId(roomKey != null ? roomKey.getId() : null)
-                .codeNumber(roomKey != null ? roomKey.getCodeNumber() : null)
-                .qrCodeData(roomKey != null ? roomKey.getQrCodeData() : null)
-                .activatedAt(roomKey != null ? roomKey.getActivatedAt() : null)
-                .expiredAt(roomKey != null ? roomKey.getExpiredAt() : null)
-                .roomKeyStatus(roomKey != null ? roomKey.getStatus() : null)
-
-                .build();
-    }
-
-    private PaymentResponse mapPayment(
-            Payment payment
-    ) {
-
-        return PaymentResponse.builder()
-                .id(payment.getId())
-                .amount(payment.getAmount())
-                .paymentMethod(payment.getPaymentMethod())
-                .gatewayName(payment.getGatewayName())
-                .paymentType(payment.getPaymentType())
-                .status(payment.getStatus())
-                .transactionReference(
-                        payment.getTransactionReference()
-                )
-                .paymentDate(payment.getPaymentDate())
-                .notes(payment.getNotes())
-                .build();
-    }
-
-    private InvoiceResponse mapInvoice(
-            Invoice invoice
-    ) {
-
-        return InvoiceResponse.builder()
-                .id(invoice.getId())
-                .invoiceNumber(invoice.getInvoiceNumber())
-                .customerName(invoice.getCustomerName())
-                .customerEmail(invoice.getCustomerEmail())
-                .customerPhone(invoice.getCustomerPhone())
-                .amountPaid(invoice.getAmountPaid())
-                .invoiceDescription(
-                        invoice.getInvoiceDescription()
-                )
-                .issuedAt(invoice.getIssuedAt())
-                .isSentEmail(invoice.getIsSentEmail())
-                .build();
+        return bookingMapper.toDetailResponse(booking);
     }
 
     // ==================================
@@ -570,7 +419,7 @@ public class BookingService {
         List<AdminBookingResponse> content =
                 bookingPage.getContent()
                         .stream()
-                        .map(this::toResponse)
+                        .map(bookingMapper::toAdminResponse)
                         .toList();
 
         return PageResponse.<AdminBookingResponse>builder()
@@ -605,7 +454,7 @@ public class BookingService {
         List<AdminBookingResponse> content =
                 bookingPage.getContent()
                         .stream()
-                        .map(this::toResponse)
+                        .map(bookingMapper::toAdminResponse)
                         .toList();
 
         return PageResponse.<AdminBookingResponse>builder()
@@ -643,7 +492,7 @@ public class BookingService {
         List<AdminBookingResponse> content =
                 bookingPage.getContent()
                         .stream()
-                        .map(this::toResponse)
+                        .map(bookingMapper::toAdminResponse)
                         .toList();
 
         // ===== RESPONSE =====
@@ -664,96 +513,7 @@ public class BookingService {
         // ===== FIND BOOKING =====
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("BOOKING_NOT_FOUND"));
-
-        // ROOM SCHEDULES=====================================================
-        List<AdminRoomScheduleResponse> roomSchedules =
-                booking.getRoomSchedules()
-                        .stream()
-                        .map(schedule -> {
-
-                            // ===== ROOM KEY =====
-                            RoomKey roomKey = roomKeyRepository.findByRoomScheduleId(schedule.getId()).orElse(null);
-                            return AdminRoomScheduleResponse.builder()
-                                    .roomScheduleId(schedule.getId())
-                                    .roomId(schedule.getRoom().getId())
-                                    .roomNumber(schedule.getRoom().getRoomNumber())
-                                    .floor(schedule.getRoom().getFloor())
-                                    .roomStatus(schedule.getRoom().getStatus())
-                                    .allocatedFor(schedule.getRoom().getAllocatedFor())
-                                    .startAt(schedule.getStartAt())
-                                    .endAt(schedule.getEndAt())
-                                    .status(schedule.getStatus())
-
-                                    // ===== ROOM KEY =====
-                                    .roomKeyId(roomKey != null ? roomKey.getId() : null)
-                                    .codeNumber(roomKey != null ? roomKey.getCodeNumber() : null)
-                                    .qrCodeData(roomKey != null ? roomKey.getQrCodeData() : null)
-                                    .roomKeyStatus(roomKey != null ? roomKey.getStatus() : null)
-                                    .activatedAt(roomKey != null ? roomKey.getActivatedAt() : null)
-                                    .expiredAt(roomKey != null ? roomKey.getExpiredAt() : null)
-
-                                    .build();
-                        })
-                        .toList();
-
-        // PAYMENTS=====================================================
-        List<PaymentResponse> payments =
-                booking.getPayments()
-                        .stream()
-                        .map(payment ->
-                                PaymentResponse.builder()
-                                        .id(payment.getId())
-                                        .amount(payment.getAmount())
-                                        .paymentMethod(payment.getPaymentMethod())
-                                        .gatewayName(payment.getGatewayName())
-                                        .paymentType(payment.getPaymentType())
-                                        .status(payment.getStatus())
-                                        .transactionReference(payment.getTransactionReference())
-                                        .paymentDate(payment.getPaymentDate())
-                                        .notes(payment.getNotes())
-                                        .build()
-                        ).toList();
-
-        // RESPONSE=====================================================
-        User customer = booking.getCustomer();
-        RoomType roomType = booking.getRoomType();
-        return AdminBookingDetailResponse.builder()
-                // BOOKING=====================================================
-                .bookingId(booking.getId())
-                .bookingType(booking.getBookingType())
-                .bookingSource(booking.getBookingSource())
-                .bookingStatus(booking.getStatus())
-                .paymentStatus(booking.getPaymentStatus())
-                .requestedQuantity(booking.getRequestedQuantity())
-                .totalAmount(booking.getTotalAmount())
-                .notes(booking.getNotes())
-                .requestedCheckin(booking.getRequestedCheckin())
-                .requestedCheckout(booking.getRequestedCheckout())
-                .createdAt(booking.getCreatedAt())
-                // CUSTOMER=====================================================
-                .customerId(customer != null ? customer.getId() : null)
-                .customerName(booking.getCustomerName())
-                .customerPhone(booking.getCustomerPhone())
-                .customerEmail(booking.getCustomerEmail())
-                .customerUsername(customer != null ? customer.getUsername() : null)
-                .customerAvatar(customer != null ? customer.getAvatarUrl() : null)
-                .customerGender(customer != null ? customer.getGender() : null)
-                .customerDateOfBirth(customer != null ? customer.getDateOfBirth() : null)
-                // ROOM TYPE=====================================================
-                .roomTypeId(roomType.getId())
-                .roomTypeName(roomType.getName())
-                .roomTypeDescription(roomType.getDescription())
-                .pricePerDay(roomType.getPricePerDay())
-                .pricePerHour(roomType.getPricePerHour())
-                .maxAdults(roomType.getMaxAdults())
-                .maxChildren(roomType.getMaxChildren())
-                .bedCount(roomType.getBedCount())
-                .bedType(roomType.getBedType())
-                .roomSizeM2(roomType.getRoomSizeM2())
-                // CHILDREN=====================================================
-                .roomSchedules(roomSchedules)
-                .payments(payments)
-                .build();
+        return bookingMapper.toAdminDetailResponse(booking);
     }
 
     // ==================================
