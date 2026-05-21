@@ -29,8 +29,8 @@ public class AdminBookingController {
     // ================= SEARCH BOOKINGS =================
     @GetMapping("/search")
     public PageResponse<AdminBookingResponse> searchBookings(
-            @RequestBody SearchBookingRequest request,
-            PaginationRequest pagination
+            @ModelAttribute SearchBookingRequest request,
+            @ModelAttribute PaginationRequest pagination
     ) {
         return bookingService.searchBookings(request, pagination);
     }
@@ -38,8 +38,8 @@ public class AdminBookingController {
     // ================= FILTER BOOKINGS =================
     @GetMapping("/filter")
     public PageResponse<AdminBookingResponse> filterBookings(
-            @RequestBody FilterBookingRequest request,
-            PaginationRequest pagination
+            @ModelAttribute FilterBookingRequest request,
+            @ModelAttribute PaginationRequest pagination
     ) {
         return bookingService.filterBookings(request, pagination);
     }

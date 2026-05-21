@@ -25,12 +25,13 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public String login(@RequestBody LoginRequest request) {
-        return authService.login(request.getUsername(), request.getPassword());
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+        String token = authService.login(request.getUsername(), request.getPassword());
+        return ResponseEntity.ok(java.util.Map.of("token", token));
     }
 
     @PostMapping("/google")
-    public String loginWithGoogle(@RequestBody GoogleLoginRequest request) {
+    public ResponseEntity<?> loginWithGoogle(@RequestBody GoogleLoginRequest request) {
 
         String idToken = request.getIdToken();
 
@@ -60,7 +61,8 @@ public class AuthController {
                     return userRepository.save(newUser);
                 });
 
-        return jwtService.generateToken(user.getId(), user.getRole());
+        String token = jwtService.generateToken(user.getId(), user.getRole());
+        return ResponseEntity.ok(java.util.Map.of("token", token));
     }
 
     @PostMapping("/forgot-password")

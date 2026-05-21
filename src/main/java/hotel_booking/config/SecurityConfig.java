@@ -39,7 +39,9 @@ public class SecurityConfig {
 
         config.setAllowedOrigins(List.of(
                 "http://127.0.0.1:5500",
-                "http://localhost:5500"
+                "http://localhost:5500",
+                "http://localhost:3000",
+                "http://localhost:5173"
         ));
 
         config.setAllowedMethods(List.of(
@@ -70,6 +72,7 @@ public class SecurityConfig {
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/ota/**").permitAll()
                         .requestMatchers("/hotel/**").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
 
                         // ROLE
                         .requestMatchers("/admin/**").hasAuthority("ROLE_ADMIN")

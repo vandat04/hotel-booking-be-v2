@@ -51,8 +51,8 @@ public class ReceptionBookingController {
     // 5. SEARCH BOOKINGS
     @GetMapping("/search")
     public ResponseEntity<PageResponse<AdminBookingResponse>> searchBookings(
-            @RequestBody SearchBookingRequest request,
-            PaginationRequest pagination
+            @ModelAttribute SearchBookingRequest request,
+            @ModelAttribute PaginationRequest pagination
     ) {
         return ResponseEntity.ok(service.searchBookings(request, pagination));
     }

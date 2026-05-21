@@ -45,7 +45,7 @@ public class GuestController {
     // ================= SEARCH ROOM TYPE =================
     @GetMapping("/search-room-types")
     public PageResponse<GuestSearchRoomResponse> search(
-            @RequestBody GuestSearchRoomRequest request
+            @ModelAttribute GuestSearchRoomRequest request
     ) {
         return searchRoomService.search(request);
     }
@@ -61,7 +61,7 @@ public class GuestController {
     // ================= CHECK ROOM AVAILABLE =================
     @GetMapping("/room-type/check-availability")
     public CheckAvailabilityResponse checkAvailability(
-            @RequestBody CheckAvailabilityRequest request
+            @ModelAttribute CheckAvailabilityRequest request
     ) {
         return bookingService.checkAvailability(request);
     }

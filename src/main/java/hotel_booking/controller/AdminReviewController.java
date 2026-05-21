@@ -51,7 +51,7 @@ public class AdminReviewController {
     // ================= SEARCH REVIEW =================
     @GetMapping("/search")
     public PageResponse<ReviewResponse> searchReviews(
-            @RequestBody SearchReviewRequest request,
+            @ModelAttribute SearchReviewRequest request,
             @ModelAttribute PaginationRequest pagination
     ) {
         return reviewService.searchReviews(request, pagination);
