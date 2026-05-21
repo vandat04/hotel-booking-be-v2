@@ -63,7 +63,7 @@ public class GuestController {
     }
 
     // ================= CHECK ROOM AVAILABILITY =================
-    // GET /api/hotel/room-types/availability?roomTypeId=1&checkIn=2026-06-01&checkOut=2026-06-05
+    // GET /api/hotel/room-types/availability?roomTypeId=1&checkIn=2026-06-01T14:00:00&checkOut=2026-06-05T12:00:00&bookingType=DAILY&numberOfRoom=2
     @GetMapping("/room-types/availability")
     public ResponseEntity<ApiResponse<CheckAvailabilityResponse>> checkAvailability(
             @ModelAttribute CheckAvailabilityRequest request
