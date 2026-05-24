@@ -664,11 +664,14 @@ public class BookingService {
             PaginationRequest request
     ) {
 
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime limit = now.plusMinutes(15);
 
         Pageable pageable = BookingPaginationUtil.build(request);
 
+// Lấy mốc 00:00:00 của ngày hôm nay
+        LocalDateTime now = LocalDate.now().atStartOfDay();
+// Lấy mốc 23:59:59.999 của ngày hôm nay
+        LocalDateTime limit = LocalDate.now().atTime(LocalTime.MAX);
+// Truyền vào Repository
         Page<Booking> page = bookingRepository.findUpcomingCheckIn(
                 now,
                 limit,
@@ -716,16 +719,19 @@ public class BookingService {
             PaginationRequest request
     ) {
 
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime limit = now.plusMinutes(15);
-
         Pageable pageable = BookingPaginationUtil.build(request);
 
+        // Lấy mốc 00:00:00 của ngày hôm nay
+        LocalDateTime now = LocalDate.now().atStartOfDay();
+        // Lấy mốc 23:59:59.999 của ngày hôm nay
+        LocalDateTime limit = LocalDate.now().atTime(LocalTime.MAX);
+// Truyền vào Repository
         Page<Booking> page = bookingRepository.findUpcomingCheckOut(
                 now,
                 limit,
                 pageable
         );
+
 
         List<BookingUpcomingResponse> content = page.getContent()
                 .stream()
