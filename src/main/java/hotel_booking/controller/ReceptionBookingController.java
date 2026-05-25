@@ -132,4 +132,23 @@ public class ReceptionBookingController {
     ) {
         return ResponseEntity.ok(ApiResponse.success(bookingService.getUpcomingCheckOuts(request)));
     }
+
+    // 13. GET BOOKING DAMAGES
+    // GET /api/receptionist/bookings/{bookingId}/damages
+    @GetMapping("/{bookingId}/damages")
+    public ResponseEntity<ApiResponse<BookingDamageResponse>> getBookingDamages(
+            @PathVariable Integer bookingId
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(service.getBookingDamages(bookingId)));
+    }
+
+    // 14. PAY BOOKING DAMAGES
+    // POST /api/receptionist/bookings/{bookingId}/pay-damages
+    @PostMapping("/{bookingId}/pay-damages")
+    public ResponseEntity<ApiResponse<String>> payBookingDamages(
+            @PathVariable Integer bookingId,
+            @Valid @RequestBody PayDamageRequest request
+    ) {
+        return ResponseEntity.ok(ApiResponse.success("Payment processed successfully", service.payBookingDamages(bookingId, request)));
+    }
 }

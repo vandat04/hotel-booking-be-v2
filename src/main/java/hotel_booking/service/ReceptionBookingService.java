@@ -33,6 +33,7 @@ public class ReceptionBookingService {
     private final BookingService bookingService;
     private final PaymentService paymentService;
     private final RoomKeyRepository roomKeyRepository;
+    private final RoomDamageRepository roomDamageRepository;
 
     // ===================== 1. CHECK ONLY =====================
     public CheckAvailabilityResponse checkAvailability(CheckAvailabilityRequest req) {
@@ -363,6 +364,136 @@ public class ReceptionBookingService {
         roomKeyRepository.saveAll(roomKeys);
 
         return "CHECK_OUT_SUCCESS";
+    }
+
+    // ===================== 13. GET BOOKING DAMAGES =====================
+    public BookingDamageResponse getBookingDamages(Integer bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("BOOKING_NOT_FOUND"));
+
+        List<RoomSchedule> schedules = roomScheduleRepository.findByBooking_Id(bookingId);
+        String roomNumber = schedules.isEmpty() ? "N/A" : schedules.get(0).getRoom().getRoomNumber();
+
+        List<RoomDamage> damages = roomDamageRepository.findByBookingId(bookingId);
+        
+        java.math.BigDecimal totalDamageFee = java.math.BigDecimal.ZERO;
+        List<BookingDamageResponse.DamageItemDetail> details = new ArrayList<>();
+        
+        for (RoomDamage d : damages) {
+            totalDamageFee = totalDamageFee.add(d.getActualDamageFee());
+            details.add(BookingDamageResponse.DamageItemDetail.builder()
+                    .damageId(d.getId())
+                    .itemId(d.getItem().getId())
+                    .itemName(d.getItem().getItemName())
+                    .quantity(d.getQuantity())
+                    .actualDamageFee(d.getActualDamageFee())
+                    .note(d.getNote())
+                    .evidenceImageUrl(d.getEvidenceImageUrl())
+                    .reportedAt(d.getReportedAt())
+                    .build());
+        }
+
+        return BookingDamageResponse.builder()
+                .bookingId(booking.getId())
+                .customerName(booking.getCustomerName())
+                .customerPhone(booking.getCustomerPhone())
+                .roomNumber(roomNumber)
+                .totalDamageFee(totalDamageFee)
+                .bookingStatus(booking.getStatus())
+                .damages(details)
+                .build();
+    }
+
+    // ===================== 14. PAY BOOKING DAMAGES =====================
+    @Transactional
+    public String payBookingDamages(Integer bookingId, PayDamageRequest request) {
+        // 1. Validate Booking
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("BOOKING_NOT_FOUND"));
+
+        if (!"CHECKED_DAMAGE_ROOM".equalsIgnoreCase(booking.getStatus())) {
+            throw new RuntimeException("INVALID_BOOKING_STATUS_FOR_DAMAGE_PAYMENT");
+        }
+
+        // 2. Lấy danh sách hư hại để tính tổng tiền
+        List<RoomDamage> damages = roomDamageRepository.findByBookingId(bookingId);
+        if (damages.isEmpty()) {
+            throw new RuntimeException("NO_DAMAGES_REPORTED_FOR_THIS_BOOKING");
+        }
+
+        java.math.BigDecimal totalDamageFee = java.math.BigDecimal.ZERO;
+        for (RoomDamage d : damages) {
+            totalDamageFee = totalDamageFee.add(d.getActualDamageFee());
+        }
+
+        if (totalDamageFee.compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("TOTAL_DAMAGE_FEE_MUST_BE_GREATER_THAN_ZERO");
+        }
+
+        // 3. Tạo bản ghi Payment
+        String txnRef = "DMG" + System.currentTimeMillis();
+        Payment payment = Payment.builder()
+                .booking(booking)
+                .amount(totalDamageFee)
+                .paymentMethod(request.getPaymentMethod())
+                .gatewayName("CASH".equalsIgnoreCase(request.getPaymentMethod()) ? "CASH" : "VNPAY")
+                .paymentType("DAMAGE_CHARGE")
+                .status("SUCCESS")
+                .transactionReference(txnRef)
+                .paymentDate(LocalDateTime.now())
+                .notes(request.getNotes())
+                .build();
+        paymentRepository.save(payment);
+
+        // 4. Tạo bản ghi Invoice
+        Invoice invoice = Invoice.builder()
+                .booking(booking)
+                .payment(payment)
+                .customerName(booking.getCustomerName())
+                .customerEmail(booking.getCustomerEmail())
+                .customerPhone(booking.getCustomerPhone())
+                .amountPaid(totalDamageFee)
+                .invoiceDescription("BỒI THƯỜNG VẬT DỤNG")
+                .issuedAt(LocalDateTime.now())
+                .isSentEmail(false)
+                .build();
+        invoiceRepository.save(invoice);
+
+        // 5. Cập nhật Booking trạng thái sang CHECKED_OUT
+        booking.setStatus("CHECKED_OUT");
+        booking.setUpdatedAt(LocalDateTime.now());
+        bookingRepository.save(booking);
+
+        // Tự động cập nhật RoomSchedules thành COMPLETED và Rooms thành READY khi thanh toán xong phí hư hại
+        List<RoomSchedule> schedules = roomScheduleRepository.findByBooking_Id(bookingId);
+        LocalDateTime now = LocalDateTime.now();
+        for (RoomSchedule rs : schedules) {
+            rs.setStatus("COMPLETED");
+            rs.setUpdatedAt(now);
+
+            Room room = rs.getRoom();
+            if (!"MAINTENANCE".equals(room.getStatus())) {
+                room.setStatus("READY");
+            }
+            room.setUpdatedAt(now);
+            roomRepository.save(room);
+        }
+        roomScheduleRepository.saveAll(schedules);
+
+        // 6. Gửi Email / Thông báo nếu có
+        User user = null;
+        if (booking.getCustomer() != null) {
+            user = userRepository.findById(booking.getCustomer().getId()).orElse(null);
+        }
+        notificationService.createCustomerNotification(
+                user,
+                booking,
+                "BỒI THƯỜNG VẬT DỤNG THÀNH CÔNG",
+                "Phí bồi thường vật dụng đã thanh toán thành công. Check-out hoàn tất.",
+                "PAYMENT_SUCCESS"
+        );
+
+        return "PAYMENT_DAMAGE_SUCCESS";
     }
 
     // VIEW

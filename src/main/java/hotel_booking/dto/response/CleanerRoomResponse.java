@@ -23,4 +23,6 @@ public class CleanerRoomResponse {
 
     private String roomStatus;
     private String scheduleStatus;
+    private String bookingStatus;
+    private boolean hasDamageReport;
 }

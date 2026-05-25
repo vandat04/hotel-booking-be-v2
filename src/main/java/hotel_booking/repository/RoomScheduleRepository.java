@@ -70,17 +70,14 @@ public interface RoomScheduleRepository extends JpaRepository<RoomSchedule, Inte
             @Param("end") LocalDateTime end
     );
 
-    @Query(value = """
-                SELECT 
-                    DATENAME(WEEKDAY, rs.start_at) AS day,
-                    COUNT(*) AS activeCount
-                FROM RoomSchedules rs
-                WHERE rs.status = 'ACTIVE'
-                  AND rs.start_at >= :startOfWeek
-                  AND rs.start_at <= :endOfWeek
-                GROUP BY DATENAME(WEEKDAY, rs.start_at)
-            """, nativeQuery = true)
-    List<Object[]> getWeeklyActiveOccupancy(
+    @Query("""
+                SELECT rs
+                FROM RoomSchedule rs
+                WHERE rs.status IN ('ACTIVE', 'COMPLETED')
+                  AND rs.startAt <= :endOfWeek
+                  AND rs.endAt >= :startOfWeek
+            """)
+    List<RoomSchedule> findOverlappingSchedules(
             @Param("startOfWeek") LocalDateTime startOfWeek,
             @Param("endOfWeek") LocalDateTime endOfWeek
     );
@@ -99,9 +96,29 @@ public interface RoomScheduleRepository extends JpaRepository<RoomSchedule, Inte
                 SELECT rs
                 FROM RoomSchedule rs
                 JOIN FETCH rs.room r
+                JOIN FETCH r.roomType rt
                 JOIN FETCH rs.booking b
-                WHERE b.status = 'CHECKED_DAMAGE_ROOM'
-                AND rs.status = 'ACTIVE'
+                WHERE rs.status IN ('HOLD', 'SCHEDULED', 'ACTIVE')
+                  AND rs.startAt < :endOfDay
+                  AND rs.endAt > :startOfDay
+            """)
+    List<RoomSchedule> findSchedulesOverlappingDay(
+            @Param("startOfDay") LocalDateTime startOfDay,
+            @Param("endOfDay") LocalDateTime endOfDay
+    );
+
+    @Query("""
+                SELECT rs
+                FROM RoomSchedule rs
+                JOIN FETCH rs.room r
+                JOIN FETCH rs.booking b
+                WHERE (b.status = 'CHECKED_DAMAGE_ROOM' OR r.status = 'DIRTY')
+                AND rs.status IN ('ACTIVE', 'COMPLETED')
+                AND rs.id = (
+                    SELECT MAX(rs2.id)
+                    FROM RoomSchedule rs2
+                    WHERE rs2.room.id = r.id
+                )
                 ORDER BY rs.updatedAt DESC
             """)
     Page<RoomSchedule> findRoomsNeedCleaning(Pageable pageable);
