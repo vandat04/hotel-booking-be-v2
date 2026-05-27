@@ -17,6 +17,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
@@ -35,6 +36,7 @@ public class BookingService {
     private final InvoiceRepository invoiceRepository;
     private final EmailService emailService;
     private final hotel_booking.mapper.BookingMapper bookingMapper;
+    private final CustomerNotificationRepository customerNotificationRepository;
 
     // ==================================
     // ========= CHECK AVAILABLE =========
@@ -766,4 +768,211 @@ public class BookingService {
                 .build();
     }
 
+    public AdminDynamicMetricsResponse getAdminDynamicMetrics() {
+        LocalDateTime startOfToday = LocalDate.now().atStartOfDay();
+        LocalDateTime endOfToday = LocalDate.now().atTime(LocalTime.MAX);
+
+        // 1. Kinh doanh hôm nay (Today's revenue vs. Yesterday's revenue)
+        BigDecimal doanhThuHomNay = paymentRepository.getRevenueBetween(startOfToday, endOfToday);
+        if (doanhThuHomNay == null) {
+            doanhThuHomNay = BigDecimal.ZERO;
+        }
+
+        LocalDateTime startOfYesterday = LocalDate.now().minusDays(1).atStartOfDay();
+        LocalDateTime endOfYesterday = LocalDate.now().minusDays(1).atTime(LocalTime.MAX);
+        BigDecimal doanhThuHomQua = paymentRepository.getRevenueBetween(startOfYesterday, endOfYesterday);
+        if (doanhThuHomQua == null) {
+            doanhThuHomQua = BigDecimal.ZERO;
+        }
+
+        double soVoiHomQuaPercent = 0.0;
+        if (doanhThuHomQua.compareTo(BigDecimal.ZERO) > 0) {
+            soVoiHomQuaPercent = ((doanhThuHomNay.doubleValue() - doanhThuHomQua.doubleValue()) / doanhThuHomQua.doubleValue()) * 100.0;
+        } else if (doanhThuHomNay.compareTo(BigDecimal.ZERO) > 0) {
+            soVoiHomQuaPercent = 100.0;
+        }
+
+        // Current room occupancy rate (Công suất phòng hiện tại)
+        long totalRooms = roomRepository.countActiveRooms();
+        List<RoomSchedule> todayActiveSchedules = roomScheduleRepository.findActiveScheduledSchedulesBetween(startOfToday, endOfToday);
+        long occupiedRoomsToday = todayActiveSchedules.stream()
+                .filter(rs -> "ACTIVE".equals(rs.getStatus()) || "SCHEDULED".equals(rs.getStatus()))
+                .map(rs -> rs.getRoom().getId())
+                .distinct()
+                .count();
+
+        double congSuatPhongHienTai = totalRooms > 0 ? ((double) occupiedRoomsToday / totalRooms) * 100.0 : 0.0;
+
+        // Booking statistics today (Số phòng bán hôm nay, đã nhận, đã trả)
+        // Hiển thị số phòng bán hôm nay (Số booking có trạng thái confirm, check-in, check-damage, check-out hôm nay)
+        List<Booking> allBookings = bookingRepository.findAll();
+        long soPhongBanHomNay = allBookings.stream()
+                .filter(b -> b.getUpdatedAt() != null || b.getCreatedAt() != null)
+                .filter(b -> {
+                    LocalDateTime dt = b.getUpdatedAt() != null ? b.getUpdatedAt() : b.getCreatedAt();
+                    return !dt.isBefore(startOfToday) && !dt.isAfter(endOfToday);
+                })
+                .filter(b -> {
+                    String status = b.getStatus();
+                    return "CONFIRMED".equalsIgnoreCase(status) ||
+                           "CHECKED_IN".equalsIgnoreCase(status) ||
+                           "CHECKED_DAMAGE_ROOM".equalsIgnoreCase(status) ||
+                           "CHECKED_OUT".equalsIgnoreCase(status) ||
+                           "COMPLETED".equalsIgnoreCase(status);
+                })
+                .count();
+
+        long soPhongDaNhan = allBookings.stream()
+                .filter(b -> b.getUpdatedAt() != null || b.getCreatedAt() != null)
+                .filter(b -> {
+                    LocalDateTime dt = b.getUpdatedAt() != null ? b.getUpdatedAt() : b.getCreatedAt();
+                    return !dt.isBefore(startOfToday) && !dt.isAfter(endOfToday);
+                })
+                .filter(b -> "CHECKED_IN".equalsIgnoreCase(b.getStatus()))
+                .count();
+
+        long soPhongDaTra = allBookings.stream()
+                .filter(b -> b.getUpdatedAt() != null || b.getCreatedAt() != null)
+                .filter(b -> {
+                    LocalDateTime dt = b.getUpdatedAt() != null ? b.getUpdatedAt() : b.getCreatedAt();
+                    return !dt.isBefore(startOfToday) && !dt.isAfter(endOfToday);
+                })
+                .filter(b -> "CHECKED_OUT".equalsIgnoreCase(b.getStatus()) ||
+                             "CHECKED_DAMAGE_ROOM".equalsIgnoreCase(b.getStatus()) ||
+                             "COMPLETED".equalsIgnoreCase(b.getStatus()))
+                .count();
+
+        // 2. Công suất sử dụng phòng trong tháng (Monthly Occupancy)
+        LocalDate today = LocalDate.now();
+        int year = today.getYear();
+        int month = today.getMonthValue();
+        int daysInMonth = today.lengthOfMonth();
+
+        LocalDateTime startOfMonth = LocalDate.of(year, month, 1).atStartOfDay();
+        LocalDateTime endOfMonth = LocalDate.of(year, month, daysInMonth).atTime(LocalTime.MAX);
+
+        List<RoomSchedule> monthSchedules = roomScheduleRepository.findActiveScheduledSchedulesBetween(startOfMonth, endOfMonth);
+        List<DailyOccupancyDto> congSuatThang = new ArrayList<>();
+        for (int day = 1; day <= daysInMonth; day++) {
+            LocalDate targetDate = LocalDate.of(year, month, day);
+            LocalDateTime startOfDay = targetDate.atStartOfDay();
+            LocalDateTime endOfDay = targetDate.atTime(LocalTime.MAX);
+
+            long occupiedRoomsOnDay = monthSchedules.stream()
+                    .filter(rs -> rs.getStartAt().isBefore(endOfDay) && rs.getEndAt().isAfter(startOfDay))
+                    .map(rs -> rs.getRoom().getId())
+                    .distinct()
+                    .count();
+
+            double percentage = totalRooms > 0 ? ((double) occupiedRoomsOnDay / totalRooms) * 100.0 : 0.0;
+            String dayStr = String.format("%02d", day);
+            congSuatThang.add(new DailyOccupancyDto(dayStr, percentage));
+        }
+
+        // 3. Các hoạt động gần đây (Recent Activities from customer-notifications)
+        List<CustomerNotification> notifications = customerNotificationRepository.findAll(
+                org.springframework.data.domain.PageRequest.of(0, 10, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"))
+        ).getContent();
+
+        List<RecentActivityDto> hoatDongGanDay = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+        for (CustomerNotification cn : notifications) {
+            String name = "Hệ thống";
+            if (cn.getUser() != null && cn.getUser().getFullName() != null) {
+                name = cn.getUser().getFullName();
+            } else if (cn.getBooking() != null && cn.getBooking().getCustomerName() != null) {
+                name = cn.getBooking().getCustomerName();
+            }
+
+            String source = "WEB";
+            double amount = 0.0;
+            if (cn.getBooking() != null) {
+                source = cn.getBooking().getBookingSource() != null ? cn.getBooking().getBookingSource() : "WEB";
+                if (cn.getBooking().getTotalAmount() != null) {
+                    amount = cn.getBooking().getTotalAmount().doubleValue();
+                }
+            }
+
+            Duration d = Duration.between(cn.getCreatedAt(), now);
+            String timeAgo;
+            if (d.isNegative() || d.toMinutes() < 1) {
+                timeAgo = "Vừa xong";
+            } else if (d.toMinutes() < 60) {
+                timeAgo = d.toMinutes() + " phút trước";
+            } else if (d.toHours() < 24) {
+                timeAgo = d.toHours() + " giờ trước";
+            } else {
+                timeAgo = d.toDays() + " ngày trước";
+            }
+
+            hoatDongGanDay.add(RecentActivityDto.builder()
+                    .customerName(name)
+                    .bookingSource(source)
+                    .message(cn.getMessage())
+                    .timeAgo(timeAgo)
+                    .amount(amount)
+                    .build());
+        }
+
+        // 4. Doanh thu tháng này (Monthly Revenue)
+        BigDecimal doanhThuThangNay = paymentRepository.getRevenueBetween(startOfMonth, endOfMonth);
+        if (doanhThuThangNay == null) {
+            doanhThuThangNay = BigDecimal.ZERO;
+        }
+
+        // 5. Công suất phòng theo từng loại phòng (Occupancy by Room Type in the CURRENT MONTH)
+        List<RoomType> allRoomTypes = roomTypeRepository.findAll();
+        List<RoomTypeOccupancyDto> congSuatTheoLoaiPhong = new ArrayList<>();
+        
+        for (RoomType rt : allRoomTypes) {
+            int totalRoomsOfType = roomRepository.countTotalRooms(rt.getId());
+            if (totalRoomsOfType == 0) {
+                congSuatTheoLoaiPhong.add(new RoomTypeOccupancyDto(rt.getName(), 0.0));
+                continue;
+            }
+            
+            long totalOccupiedRoomDays = 0;
+            for (int d = 1; d <= daysInMonth; d++) {
+                LocalDate targetDate = LocalDate.of(year, month, d);
+                LocalDateTime startOfDay = targetDate.atStartOfDay();
+                LocalDateTime endOfDay = targetDate.atTime(LocalTime.MAX);
+                
+                long occupiedRoomsOnDay = monthSchedules.stream()
+                        .filter(rs -> "ACTIVE".equals(rs.getStatus()) || "SCHEDULED".equals(rs.getStatus()))
+                        .filter(rs -> rs.getStartAt().isBefore(endOfDay) && rs.getEndAt().isAfter(startOfDay))
+                        .filter(rs -> rs.getRoom() != null && rs.getRoom().getRoomType() != null && rs.getRoom().getRoomType().getId().equals(rt.getId()))
+                        .map(rs -> rs.getRoom().getId())
+                        .distinct()
+                        .count();
+                totalOccupiedRoomDays += occupiedRoomsOnDay;
+            }
+            
+            double totalAvailableRoomDays = (double) totalRoomsOfType * daysInMonth;
+            double percentage = (totalOccupiedRoomDays / totalAvailableRoomDays) * 100.0;
+            congSuatTheoLoaiPhong.add(new RoomTypeOccupancyDto(rt.getName(), percentage));
+        }
+
+        // Sắp xếp giảm dần theo công suất để lấy ra "Top công suất cao"
+        congSuatTheoLoaiPhong.sort((a, b) -> Double.compare(b.getPercentage(), a.getPercentage()));
+
+
+
+        return AdminDynamicMetricsResponse.builder()
+                .doanhThuHomNay(doanhThuHomNay)
+                .doanhThuHomQua(doanhThuHomQua)
+                .soVoiHomQuaPercent(soVoiHomQuaPercent)
+                .congSuatPhongHienTai(congSuatPhongHienTai)
+                .totalRooms(totalRooms)
+                .occupiedRoomsToday(occupiedRoomsToday)
+                .soPhongBanHomNay(soPhongBanHomNay)
+                .soPhongDaNhan(soPhongDaNhan)
+                .soPhongDaTra(soPhongDaTra)
+                .congSuatThang(congSuatThang)
+                .hoatDongGanDay(hoatDongGanDay)
+                .doanhThuThangNay(doanhThuThangNay)
+                .congSuatTheoLoaiPhong(congSuatTheoLoaiPhong)
+                .build();
+    }
+
 }
+

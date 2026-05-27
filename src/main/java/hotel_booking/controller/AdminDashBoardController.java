@@ -71,4 +71,10 @@ public class AdminDashBoardController {
     public ResponseEntity<ApiResponse<StaffDashboardResponse>> getStaffDashboard() {
         return ResponseEntity.ok(ApiResponse.success(userService.getStaffDashboard()));
     }
-}
+
+    // ================ DYNAMIC METRICS ====================
+    @GetMapping("/dynamic-metrics")
+    public ResponseEntity<ApiResponse<AdminDynamicMetricsResponse>> getAdminDynamicMetrics() {
+        return ResponseEntity.ok(ApiResponse.success(bookingService.getAdminDynamicMetrics()));
+    }
+}

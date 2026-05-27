@@ -138,4 +138,19 @@ public interface RoomScheduleRepository extends JpaRepository<RoomSchedule, Inte
             """)
     int cancelRoomSchedules(LocalDateTime timeLimit);
 
+    @Query("""
+                SELECT rs
+                FROM RoomSchedule rs
+                JOIN FETCH rs.room r
+                JOIN FETCH r.roomType rt
+                WHERE rs.status IN ('ACTIVE', 'SCHEDULED')
+                  AND rs.startAt <= :end
+                  AND rs.endAt >= :start
+            """)
+    List<RoomSchedule> findActiveScheduledSchedulesBetween(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end
+    );
+
 }
+
