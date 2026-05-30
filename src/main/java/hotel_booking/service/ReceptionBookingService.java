@@ -34,6 +34,7 @@ public class ReceptionBookingService {
     private final PaymentService paymentService;
     private final RoomKeyRepository roomKeyRepository;
     private final RoomDamageRepository roomDamageRepository;
+    private final CleanerNotificationRepository cleanerNotificationRepository;
 
     // ===================== 1. CHECK ONLY =====================
     public CheckAvailabilityResponse checkAvailability(CheckAvailabilityRequest req) {
@@ -363,6 +364,17 @@ public class ReceptionBookingService {
         }
         roomKeyRepository.saveAll(roomKeys);
 
+        // ===== CREATE CLEANER NOTIFICATION =====
+        String roomNumber = schedules.isEmpty() ? "N/A" : schedules.get(0).getRoom().getRoomNumber();
+        CleanerNotification cleanerNoti = CleanerNotification.builder()
+                .booking(booking)
+                .title("Yêu cầu kiểm kê phòng " + roomNumber)
+                .message("Phòng " + roomNumber + " đã checkout. Vui lòng dọn dẹp và kiểm kê vật dụng phòng.")
+                .isRead(false)
+                .createdAt(LocalDateTime.now())
+                .build();
+        cleanerNotificationRepository.save(cleanerNoti);
+
         return "CHECK_OUT_SUCCESS";
     }
 
@@ -497,5 +509,30 @@ public class ReceptionBookingService {
     }
 
     // VIEW
+
+    @Transactional
+    public String requestRoomClean(Integer roomId) {
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new RuntimeException("ROOM_NOT_FOUND"));
+
+        // Tìm lịch phòng đang active của phòng này
+        List<RoomSchedule> activeSchedules = roomScheduleRepository.findActiveSchedulesByRoomId(roomId);
+
+        Booking booking = null;
+        if (!activeSchedules.isEmpty()) {
+            booking = activeSchedules.get(0).getBooking();
+        }
+
+        CleanerNotification cleanerNoti = CleanerNotification.builder()
+                .booking(booking)
+                .title("Yêu cầu dọn dẹp phòng " + room.getRoomNumber())
+                .message("Lễ tân yêu cầu kiểm tra và dọn dẹp đột xuất phòng " + room.getRoomNumber() + ".")
+                .isRead(false)
+                .createdAt(LocalDateTime.now())
+                .build();
+        cleanerNotificationRepository.save(cleanerNoti);
+
+        return "SUCCESS";
+    }
 
 }

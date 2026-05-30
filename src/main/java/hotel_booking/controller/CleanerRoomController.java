@@ -6,6 +6,7 @@ import hotel_booking.dto.response.ApiResponse;
 import hotel_booking.dto.response.CleanerRoomResponse;
 import hotel_booking.dto.response.DamageItemResponse;
 import hotel_booking.dto.response.PageResponse;
+import hotel_booking.dto.response.CleanerNotificationResponse;
 import hotel_booking.service.CleanerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +53,20 @@ public class CleanerRoomController {
             @RequestParam Integer bookingId
     ) {
         return ResponseEntity.ok(ApiResponse.success(cleanerService.completeCleaningByBooking(bookingId)));
+    }
+
+    // 5. Lấy Danh Sách Thông Báo
+    @GetMapping("/notifications")
+    public ResponseEntity<ApiResponse<List<CleanerNotificationResponse>>> getNotifications() {
+        return ResponseEntity.ok(ApiResponse.success(cleanerService.getNotifications()));
+    }
+
+    // 6. Đánh Dấu Thông Báo Đã Đọc
+    @PutMapping("/notifications/{id}/read")
+    public ResponseEntity<ApiResponse<String>> markAsRead(
+            @PathVariable Integer id
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(cleanerService.markNotificationAsRead(id)));
     }
 }
 

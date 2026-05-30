@@ -151,4 +151,13 @@ public class ReceptionBookingController {
     ) {
         return ResponseEntity.ok(ApiResponse.success("Payment processed successfully", service.payBookingDamages(bookingId, request)));
     }
+
+    // 15. REQUEST ROOM CLEAN FOR CLEANER
+    // POST /api/receptionist/bookings/rooms/{roomId}/request-clean
+    @PostMapping("/rooms/{roomId}/request-clean")
+    public ResponseEntity<ApiResponse<String>> requestRoomClean(
+            @PathVariable Integer roomId
+    ) {
+        return ResponseEntity.ok(ApiResponse.success("Request sent successfully", service.requestRoomClean(roomId)));
+    }
 }

@@ -152,5 +152,6 @@ public interface RoomScheduleRepository extends JpaRepository<RoomSchedule, Inte
             @Param("end") LocalDateTime end
     );
 
+    @Query("SELECT rs FROM RoomSchedule rs WHERE rs.room.id = :roomId AND rs.status = 'ACTIVE'")
+    List<RoomSchedule> findActiveSchedulesByRoomId(@Param("roomId") Integer roomId);
 }
-

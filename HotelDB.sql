@@ -1,4 +1,4 @@
-﻿CREATE DATABASE HotelDB;
+CREATE DATABASE HotelDB;
 GO
 
 USE HotelDB;
@@ -419,6 +419,27 @@ CREATE TABLE CustomerNotifications (
 
     CONSTRAINT FK_Notifications_Users FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE,
     CONSTRAINT FK_Notifications_Bookings FOREIGN KEY (booking_id) REFERENCES Bookings(id)  ON DELETE SET NULL
+);
+GO
+
+-- TẠO BẢNG CleanerNotifications (Tạo thông báo cho CLEANER)
+CREATE TABLE CleanerNotifications (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+
+    cleaner_id INT NULL,-- Nhân viên dọn dẹp nhận thông báo (nếu có)
+    booking_id INT NULL,-- Booking liên quan (nếu có)
+
+    -- Nội dung thông báo
+    title NVARCHAR(255) NOT NULL,
+    message NVARCHAR(MAX) NOT NULL,
+
+    -- Trạng thái đọc
+    is_read BIT DEFAULT 0,
+
+    created_at DATETIME2 DEFAULT GETDATE(),
+
+    CONSTRAINT FK_CleanerNotifications_Users FOREIGN KEY (cleaner_id) REFERENCES Users(id) ON DELETE SET NULL,
+    CONSTRAINT FK_CleanerNotifications_Bookings FOREIGN KEY (booking_id) REFERENCES Bookings(id) ON DELETE SET NULL
 );
 GO
 

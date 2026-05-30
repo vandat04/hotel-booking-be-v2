@@ -18,6 +18,9 @@ import hotel_booking.repository.RoomRepository;
 import hotel_booking.repository.RoomScheduleRepository;
 import hotel_booking.repository.RoomTypeItemRepository;
 import hotel_booking.repository.RoomDamageRepository;
+import hotel_booking.repository.CleanerNotificationRepository;
+import hotel_booking.dto.response.CleanerNotificationResponse;
+import hotel_booking.entity.CleanerNotification;
 import hotel_booking.util.BookingPaginationUtil;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +43,7 @@ public class CleanerService {
     private final CustomerNotificationRepository notificationRepository;
     private final RoomTypeItemRepository roomTypeItemRepository;
     private final RoomDamageRepository roomDamageRepository;
+    private final CleanerNotificationRepository cleanerNotificationRepository;
 
     // Get list cong viec dong phòng
     public PageResponse<CleanerRoomResponse> getRoomsNeedCleaning(PaginationRequest request) {
@@ -270,5 +274,44 @@ public class CleanerService {
         bookingRepository.save(booking);
 
         return "DAMAGE_REPORT_SUBMITTED";
+    }
+
+    // =====================================================
+    // GET CLEANER NOTIFICATIONS
+    // =====================================================
+    public List<CleanerNotificationResponse> getNotifications() {
+        List<CleanerNotification> notifications = cleanerNotificationRepository.findAllByOrderByCreatedAtDesc();
+        return notifications.stream()
+                .map(n -> {
+                    String roomNumber = "N/A";
+                    if (n.getBooking() != null) {
+                        List<RoomSchedule> schedules = roomScheduleRepository.findByBooking_Id(n.getBooking().getId());
+                        if (!schedules.isEmpty()) {
+                            roomNumber = schedules.get(0).getRoom().getRoomNumber();
+                        }
+                    }
+                    return CleanerNotificationResponse.builder()
+                            .id(n.getId())
+                            .bookingId(n.getBooking() != null ? n.getBooking().getId() : null)
+                            .title(n.getTitle())
+                            .message(n.getMessage())
+                            .isRead(n.getIsRead())
+                            .createdAt(n.getCreatedAt())
+                            .roomNumber(roomNumber)
+                            .build();
+                })
+                .toList();
+    }
+
+    // =====================================================
+    // MARK NOTIFICATION AS READ
+    // =====================================================
+    @Transactional
+    public String markNotificationAsRead(Integer id) {
+        CleanerNotification noti = cleanerNotificationRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("NOTIFICATION_NOT_FOUND"));
+        noti.setIsRead(true);
+        cleanerNotificationRepository.save(noti);
+        return "SUCCESS";
     }
 }
