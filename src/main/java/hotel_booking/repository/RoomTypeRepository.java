@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -46,6 +47,42 @@ public interface RoomTypeRepository extends JpaRepository<RoomType, Integer> {
 
     Page<RoomType> findAllByStatus(
             Integer status,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT rt FROM RoomType rt
+            WHERE rt.status = 1
+            AND (
+                (:bookingType = 'DAILY' AND rt.pricePerDay BETWEEN :minPrice AND :maxPrice)
+                OR (:bookingType = 'HOURLY' AND rt.pricePerHour BETWEEN :minPrice AND :maxPrice)
+            )
+            AND (:adults IS NULL OR rt.maxAdults >= :adults)
+            AND (:children IS NULL OR rt.maxChildren >= :children)
+            AND (
+                :checkIn IS NULL OR :checkOut IS NULL OR
+                EXISTS (
+                    SELECT r FROM Room r
+                    WHERE r.roomType = rt
+                      AND r.isActive = true
+                      AND r.status != 'MAINTENANCE'
+                      AND NOT EXISTS (
+                          SELECT rs FROM RoomSchedule rs
+                          WHERE rs.room = r
+                            AND rs.status IN ('SCHEDULED', 'ACTIVE', 'HOLD')
+                            AND NOT (rs.endAt <= :checkIn OR rs.startAt >= :checkOut)
+                      )
+                )
+            )
+            """)
+    Page<RoomType> searchRoomTypes(
+            @Param("bookingType") String bookingType,
+            @Param("minPrice") BigDecimal minPrice,
+            @Param("maxPrice") BigDecimal maxPrice,
+            @Param("adults") Integer adults,
+            @Param("children") Integer children,
+            @Param("checkIn") LocalDateTime checkIn,
+            @Param("checkOut") LocalDateTime checkOut,
             Pageable pageable
     );
 

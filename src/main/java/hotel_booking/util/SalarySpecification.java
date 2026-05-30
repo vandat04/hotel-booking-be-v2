@@ -67,10 +67,15 @@ public class SalarySpecification {
             if (request.getStatus() != null
                     && !request.getStatus().isBlank()) {
 
+                String queryStatus = request.getStatus();
+                if ("UNPAID".equalsIgnoreCase(queryStatus)) {
+                    queryStatus = "PENDING";
+                }
+
                 predicates.add(
                         cb.equal(
                                 root.get("status"),
-                                request.getStatus()
+                                queryStatus
                         )
                 );
             }

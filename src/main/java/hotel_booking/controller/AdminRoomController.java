@@ -52,13 +52,14 @@ public class AdminRoomController {
     }
 
     // ================= VIEW ALL ROOMS (paginated, filterable) =================
-    // GET /api/admin/rooms?roomTypeId=1&page=0&size=10
+    // GET /api/admin/rooms?roomTypeId=1&filterActive=all&page=0&size=10
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<RoomResponse>>> getAllRooms(
             @RequestParam(required = false) Integer roomTypeId,
+            @RequestParam(required = false) String filterActive,
             PaginationRequest request
     ) {
-        return ResponseEntity.ok(ApiResponse.success(roomService.getAllRooms(roomTypeId, request)));
+        return ResponseEntity.ok(ApiResponse.success(roomService.getAllRooms(roomTypeId, filterActive, request)));
     }
 
     // ================= ROOM DETAIL =================

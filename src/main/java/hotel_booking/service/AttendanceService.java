@@ -228,6 +228,7 @@ public class AttendanceService {
                 .role(user.getRole())
                 .assignId(assign.getId())
                 .shiftName(assign.getShift().getShiftName())
+                .workDate(assign.getWorkDate())
                 .checkIn(attendance.getCheckIn())
                 .lateMinutes(attendance.getLateMinutes())
                 .status(attendance.getStatus())

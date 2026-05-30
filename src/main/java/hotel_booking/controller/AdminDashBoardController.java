@@ -77,4 +77,20 @@ public class AdminDashBoardController {
     public ResponseEntity<ApiResponse<AdminDynamicMetricsResponse>> getAdminDynamicMetrics() {
         return ResponseEntity.ok(ApiResponse.success(bookingService.getAdminDynamicMetrics()));
     }
+
+    // ================ ALLOCATION METRICS ==================
+    @GetMapping("/allocation-metrics")
+    public ResponseEntity<ApiResponse<AdminAllocationMetricsResponse>> getAdminAllocationMetrics(
+            @RequestParam(required = false) String date
+    ) {
+        java.time.LocalDate targetDate = java.time.LocalDate.now();
+        if (date != null && !date.trim().isEmpty()) {
+            try {
+                targetDate = java.time.LocalDate.parse(date.trim());
+            } catch (Exception e) {
+                // Ignore parsing errors and default to now
+            }
+        }
+        return ResponseEntity.ok(ApiResponse.success(bookingService.getAdminAllocationMetrics(targetDate)));
+    }
 }

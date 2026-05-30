@@ -1,5 +1,6 @@
 package hotel_booking.service;
 
+import hotel_booking.dto.request.CreateRoleSalaryConfigRequest;
 import hotel_booking.dto.request.UpdateRoleSalaryConfigRequest;
 import hotel_booking.dto.response.RoleSalaryConfigResponse;
 import hotel_booking.entity.RoleSalaryConfig;
@@ -46,6 +47,40 @@ public class RoleSalaryConfigService {
                 .createdAt(config.getCreatedAt())
                 .updatedAt(config.getUpdatedAt())
                 .build();
+    }
+
+    // CREATE ROLE SALARY CONFIG=====================================================
+    @Transactional
+    public RoleSalaryConfigResponse createRoleSalaryConfig(
+            CreateRoleSalaryConfigRequest request
+    ) {
+        // VALIDATION ROLE================================================
+        String role = request.getStaffRole() != null ? request.getStaffRole().toUpperCase() : "";
+        if (!"RECEPTIONIST".equals(role) && !"CLEANER".equals(role)) {
+            throw new RuntimeException("STAFF_ROLE_INVALID");
+        }
+
+        // DUPLICATE CHECK================================================
+        if (roleSalaryConfigRepository.findByStaffRoleIgnoreCase(role).isPresent()) {
+            throw new RuntimeException("ROLE_SALARY_CONFIG_ALREADY_EXISTS");
+        }
+
+        // VALIDATION BASE SALARY==========================================
+        if (request.getBaseSalary().doubleValue() < 0) {
+            throw new RuntimeException("BASE_SALARY_INVALID");
+        }
+
+        // CREATE=================================================
+        RoleSalaryConfig config = RoleSalaryConfig.builder()
+                .staffRole(role)
+                .baseSalary(request.getBaseSalary())
+                .isActive(request.getIsActive())
+                .build();
+
+        // save
+        roleSalaryConfigRepository.save(config);
+
+        return mapToResponse(config);
     }
 
     // UPDATE ROLE SALARY CONFIG=====================================================

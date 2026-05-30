@@ -25,7 +25,7 @@ public class AttendanceSpecification {
                 predicates = cb.and(
                         predicates,
                         cb.equal(
-                                root.get("assignStaff")
+                                root.get("shiftAssignment")
                                         .get("workDate"),
                                 workDate
                         )
@@ -41,7 +41,7 @@ public class AttendanceSpecification {
                                 cb.function(
                                         "MONTH",
                                         Integer.class,
-                                        root.get("assignStaff")
+                                        root.get("shiftAssignment")
                                                 .get("workDate")
                                 ),
                                 month
@@ -54,7 +54,7 @@ public class AttendanceSpecification {
                                 cb.function(
                                         "YEAR",
                                         Integer.class,
-                                        root.get("assignStaff")
+                                        root.get("shiftAssignment")
                                                 .get("workDate")
                                 ),
                                 year
@@ -80,7 +80,7 @@ public class AttendanceSpecification {
                 predicates = cb.and(
                         predicates,
                         cb.equal(
-                                root.get("assignStaff")
+                                root.get("shiftAssignment")
                                         .get("shift")
                                         .get("id"),
                                 shiftId

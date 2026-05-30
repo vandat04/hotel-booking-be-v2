@@ -134,19 +134,37 @@ public class RoomService {
     // ==================================
     public PageResponse<RoomResponse> getAllRooms(
             Integer roomTypeId,
+            String filterActive,
             PaginationRequest request
     ) {
 
         Pageable pageable = RoomPaginationUtil.build(request);
         Page<Room> roomPage;
 
-        // ===== FILTER ROOM TYPE =====
-        if (roomTypeId != null) {
-            roomPage = roomRepository.findByRoomTypeIdAndIsActiveTrue(roomTypeId, pageable);
-        } else {
+        // Determine active filtering strategy
+        // Supported values: "all", "active", "inactive"
+        // Default to "active" if null or empty to preserve existing behavior
+        String activeStrategy = (filterActive == null || filterActive.trim().isEmpty()) ? "active" : filterActive.trim().toLowerCase();
 
-            // ===== GET ALL ROOM =====
-            roomPage = roomRepository.findAllByIsActiveTrue(pageable);
+        if ("inactive".equals(activeStrategy)) {
+            if (roomTypeId != null) {
+                roomPage = roomRepository.findByRoomTypeIdAndIsActiveFalse(roomTypeId, pageable);
+            } else {
+                roomPage = roomRepository.findAllByIsActiveFalse(pageable);
+            }
+        } else if ("all".equals(activeStrategy)) {
+            if (roomTypeId != null) {
+                roomPage = roomRepository.findByRoomTypeId(roomTypeId, pageable);
+            } else {
+                roomPage = roomRepository.findAll(pageable);
+            }
+        } else {
+            // Default: active only
+            if (roomTypeId != null) {
+                roomPage = roomRepository.findByRoomTypeIdAndIsActiveTrue(roomTypeId, pageable);
+            } else {
+                roomPage = roomRepository.findAllByIsActiveTrue(pageable);
+            }
         }
 
         // ===== MAP RESPONSE =====

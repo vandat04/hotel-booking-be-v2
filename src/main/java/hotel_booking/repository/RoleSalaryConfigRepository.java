@@ -11,9 +11,11 @@ public interface RoleSalaryConfigRepository
 
     // lấy tất cả
     List<RoleSalaryConfig> findAllByOrderByIdDesc();
-
+ 
     // lọc theo trạng thái
     List<RoleSalaryConfig> findByIsActiveOrderByIdDesc(Boolean isActive);
-
+ 
     Optional<RoleSalaryConfig> findByStaffRoleAndIsActiveTrue(String role);
+
+    Optional<RoleSalaryConfig> findByStaffRoleIgnoreCase(String staffRole);
 }

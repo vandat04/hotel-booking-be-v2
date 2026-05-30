@@ -52,6 +52,15 @@ public interface RoomRepository extends JpaRepository<Room, Integer> {
             Pageable pageable
     );
 
+    Page<Room> findByRoomTypeId(Integer roomTypeId, Pageable pageable);
+
+    Page<Room> findAllByIsActiveFalse(Pageable pageable);
+
+    Page<Room> findByRoomTypeIdAndIsActiveFalse(
+            Integer roomTypeId,
+            Pageable pageable
+    );
+
     long countByIsActiveTrue();
 
     long countByStatus(String status);

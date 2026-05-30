@@ -1,5 +1,6 @@
 package hotel_booking.controller;
 
+import hotel_booking.dto.request.CreateRoleSalaryConfigRequest;
 import hotel_booking.dto.request.UpdateRoleSalaryConfigRequest;
 import hotel_booking.dto.response.ApiResponse;
 import hotel_booking.dto.response.RoleSalaryConfigResponse;
@@ -24,6 +25,14 @@ public class AdminRoleSalaryConfigController {
             @RequestParam(required = false) Boolean isActive
     ) {
         return ResponseEntity.ok(ApiResponse.success(roleSalaryConfigService.getAllRoleSalaryConfigs(isActive)));
+    }
+
+    // CREATE ROLE SALARY CONFIG=====================================================
+    @PostMapping
+    public ResponseEntity<ApiResponse<RoleSalaryConfigResponse>> createRoleSalaryConfig(
+            @Valid @RequestBody CreateRoleSalaryConfigRequest request
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(roleSalaryConfigService.createRoleSalaryConfig(request)));
     }
 
     // UPDATE ROLE SALARY CONFIG=====================================================

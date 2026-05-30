@@ -12,6 +12,10 @@ import hotel_booking.repository.*;
 import hotel_booking.util.PaginationUtil;
 import lombok.RequiredArgsConstructor;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -30,46 +34,59 @@ public class GuestService {
     private final hotel_booking.mapper.RoomTypeMapper roomTypeMapper;
 
     // ================= SEARCH ROOM TYPES =================
+    private LocalDateTime parseDateTime(String dateTimeStr) {
+        if (dateTimeStr == null || dateTimeStr.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(dateTimeStr);
+        } catch (Exception e) {
+            try {
+                return LocalDateTime.parse(dateTimeStr, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            } catch (Exception e2) {
+                try {
+                    return LocalDateTime.parse(dateTimeStr, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+                } catch (Exception e3) {
+                    try {
+                        return java.time.LocalDate.parse(dateTimeStr).atStartOfDay();
+                    } catch (Exception e4) {
+                        return null;
+                    }
+                }
+            }
+        }
+    }
+
     public PageResponse<GuestSearchRoomResponse> search(GuestSearchRoomRequest request) {
 
         // ===== VALIDATE =====
         if (request.getBookingType() == null || (!request.getBookingType().equals("DAILY") && !request.getBookingType().equals("HOURLY"))) {
-
             throw new RuntimeException("Booking type must be DAILY or HOURLY");
         }
 
         Pageable pageable = PaginationUtil.build(request);
 
         BigDecimal minPrice = request.getMinPrice() != null ? request.getMinPrice() : BigDecimal.ZERO;
-
         BigDecimal maxPrice = request.getMaxPrice() != null ? request.getMaxPrice() : new BigDecimal("999999999");
 
+        // Parse check-in, check-out dates
+        LocalDateTime checkInVal = parseDateTime(request.getCheckIn());
+        LocalDateTime checkOutVal = parseDateTime(request.getCheckOut());
+
         // ===== QUERY =====
-        Page<RoomType> roomTypePage;
-
-        if (request.getBookingType().equals("DAILY")) {
-
-            roomTypePage = roomTypeRepository.findByStatusAndPricePerDayBetween(1, minPrice, maxPrice, pageable);
-
-        } else {
-
-            roomTypePage = roomTypeRepository.findByStatusAndPricePerHourBetween(1, minPrice, maxPrice, pageable);
-        }
+        Page<RoomType> roomTypePage = roomTypeRepository.searchRoomTypes(
+                request.getBookingType(),
+                minPrice,
+                maxPrice,
+                request.getAdults(),
+                request.getChildren(),
+                checkInVal,
+                checkOutVal,
+                pageable
+        );
 
         // ===== MAP RESPONSE =====
         List<GuestSearchRoomResponse> content = roomTypePage.getContent().stream().map(roomType -> {
-
-            // ===== FILTER ADULT =====
-            if (request.getAdults() != null && roomType.getMaxAdults() < request.getAdults()) {
-
-                return null;
-            }
-
-            // ===== FILTER CHILDREN =====
-            if (request.getChildren() != null && roomType.getMaxChildren() < request.getChildren()) {
-
-                return null;
-            }
 
             // ===== THUMBNAIL =====
             String thumbnail = null;
@@ -77,23 +94,26 @@ public class GuestService {
             RoomTypeImage primaryImage = imageRepository.findFirstByRoomTypeIdAndIsPrimaryTrue(roomType.getId()).orElse(null);
 
             if (primaryImage != null) {
-
                 thumbnail = primaryImage.getImageUrl();
-
             } else {
-
                 RoomTypeImage firstImage = imageRepository.findFirstByRoomTypeIdOrderByIdAsc(roomType.getId()).orElse(null);
-
                 if (firstImage != null) {
                     thumbnail = firstImage.getImageUrl();
                 }
             }
 
             return roomTypeMapper.toSearchResponse(roomType, thumbnail);
-        }).filter(java.util.Objects::nonNull).toList();
+        }).toList();
 
         // ===== RESPONSE =====
-        return PageResponse.<GuestSearchRoomResponse>builder().content(content).page(roomTypePage.getNumber()).size(roomTypePage.getSize()).totalElements(roomTypePage.getTotalElements()).totalPages(roomTypePage.getTotalPages()).last(roomTypePage.isLast()).build();
+        return PageResponse.<GuestSearchRoomResponse>builder()
+                .content(content)
+                .page(roomTypePage.getNumber())
+                .size(roomTypePage.getSize())
+                .totalElements(roomTypePage.getTotalElements())
+                .totalPages(roomTypePage.getTotalPages())
+                .last(roomTypePage.isLast())
+                .build();
     }
 
     // ================= DETAIL =================

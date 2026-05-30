@@ -18,4 +18,7 @@ public class GuestSearchRoomRequest extends PaginationRequest {
     // optional
     private Integer adults;
     private Integer children;
+    // check-in, check-out dates
+    private String checkIn;
+    private String checkOut;
 }
