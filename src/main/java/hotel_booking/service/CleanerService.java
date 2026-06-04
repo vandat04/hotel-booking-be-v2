@@ -136,6 +136,7 @@ public class CleanerService {
         // =========================
         // UPDATE BOOKING
         // =========================
+        boolean alreadyCheckedOut = "CHECKED_OUT".equals(booking.getStatus());
         booking.setStatus("CHECKED_OUT");
         booking.setUpdatedAt(now);
         bookingRepository.save(booking);
@@ -143,18 +144,20 @@ public class CleanerService {
         // =========================
         // NOTIFICATION
         // =========================
-        CustomerNotification noti = new CustomerNotification();
-        noti.setUser(booking.getCustomer());
-        noti.setBooking(booking);
-        noti.setTitle("BOOKING ROOM IN CHECK-X");
-        noti.setMessage("Check-out successful");
-        noti.setNotificationType("BOOKING_SUCCESS");
-        noti.setSentViaEmail(false);
-        noti.setSentViaAppPush(true);
-        noti.setIsRead(false);
-        noti.setCreatedAt(now);
+        if (!alreadyCheckedOut) {
+            CustomerNotification noti = new CustomerNotification();
+            noti.setUser(booking.getCustomer());
+            noti.setBooking(booking);
+            noti.setTitle("BOOKING ROOM IN CHECK-X");
+            noti.setMessage("Check-out successful");
+            noti.setNotificationType("BOOKING_SUCCESS");
+            noti.setSentViaEmail(false);
+            noti.setSentViaAppPush(true);
+            noti.setIsRead(false);
+            noti.setCreatedAt(now);
 
-        notificationRepository.save(noti);
+            notificationRepository.save(noti);
+        }
 
         return "CLEANING_COMPLETED_BY_BOOKING";
     }
@@ -196,7 +199,7 @@ public class CleanerService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("BOOKING_NOT_FOUND"));
 
-        if (!"CHECKED_IN".equals(booking.getStatus()) && !"CHECKED_DAMAGE_ROOM".equals(booking.getStatus())) {
+        if (!"CHECKED_IN".equals(booking.getStatus()) && !"CHECKED_DAMAGE_ROOM".equals(booking.getStatus()) && !"CHECKED_OUT".equals(booking.getStatus())) {
             throw new RuntimeException("INVALID_BOOKING_STATUS");
         }
 

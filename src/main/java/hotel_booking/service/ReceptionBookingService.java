@@ -334,9 +334,27 @@ public class ReceptionBookingService {
         }
 
         // ===== UPDATE BOOKING =====
-        booking.setStatus("CHECKED_DAMAGE_ROOM");
+        booking.setStatus("CHECKED_OUT");
         booking.setUpdatedAt(LocalDateTime.now());
         bookingRepository.save(booking);
+
+        // ===== SEND NOTIFICATION & MAIL =====
+        User user = null;
+        if (booking.getCustomer() != null) {
+            user = userRepository.findById(booking.getCustomer().getId()).orElse(null);
+        }
+        String email = booking.getCustomerEmail();
+
+        if (email != null && !email.isBlank()) {
+            emailService.sendCustomerEmail(email, "BOOKING ROOM IN CHECK-X", "Check-out successful.");
+        }
+        notificationService.createCustomerNotification(
+                user,
+                booking,
+                "BOOKING ROOM IN CHECK-X",
+                "Check-out successful.",
+                "BOOKING_SUCCESS"
+        );
 
         // ===== UPDATE ROOM SCHEDULES =====
         List<RoomSchedule> schedules = roomScheduleRepository.findByBooking_Id(bookingId);
